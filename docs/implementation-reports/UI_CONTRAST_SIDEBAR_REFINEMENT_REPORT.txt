@@ -1,0 +1,18 @@
+NAF SSS 15 - Contrast, Colour and Sidebar Refinement Report
+
+Implemented fixes:
+1. Added final theme-level contrast overrides for light and dark modes.
+2. Refined system colour palette to cleaner command blues, restrained greens/ambers/reds, and stronger text contrast.
+3. Normalised readable text, muted text, links, panels, cards, forms, tables, badges and alerts in both modes.
+4. Reworked sidebar into a premium command navigation surface.
+5. Added operational session card with unit/role status.
+6. Added desktop sidebar collapse control.
+7. Added prominent Issue / Review Signal CTA in sidebar for authorised users.
+8. Improved active/hover/focus states for sidebar items.
+9. Improved collapsed and mobile drawer behaviour.
+10. Added focus-visible accessibility styling.
+11. Improved signature pad/workflow contrast so signing area remains visible in both themes.
+
+Checks performed:
+- Python compile check.
+- ZIP integrity check.

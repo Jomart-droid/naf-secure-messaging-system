@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="admin-console audit-command-center">
+  <div class="admin-hero-panel compact-hero">
+    <div>
+      <div class="admin-eyebrow"><span class="pulse-dot"></span> MASTER AUDIT TRAIL</div>
+      <h1>{% if current_user.role == 'SUPER_ADMIN' %}Super Admin Master Audit{% else %}Audit Logs{% endif %}</h1>
+      <p class="page-subtitle">All captured unit, user, signal, message, access, print/export and system events.</p>
+    </div>
+    <div class="admin-hero-actions">
+      <a class="btn" href="{{ url_for('admin.export_audit_logs_csv', q=request.args.get('q',''), action=request.args.get('action',''), actor=request.args.get('actor',''), unit_id=request.args.get('unit_id',''), date_from=request.args.get('date_from',''), date_to=request.args.get('date_to','')) }}">Export Filtered CSV</a>
+      <a class="btn btn-ghost" href="{{ url_for('admin.export_audit_logs_csv') }}">Export All CSV</a>
+    </div>
+  </div>
+
+  <section class="audit-summary-grid master-audit-summary">
+    <div class="audit-summary-card"><span>Total Events</span><strong>{{ audit_summary.total }}</strong></div>
+    <div class="audit-summary-card"><span>Units Captured</span><strong>{{ audit_summary.units }}</strong></div>
+    <div class="audit-summary-card"><span>Actors Captured</span><strong>{{ audit_summary.users }}</strong></div>
+    <div class="audit-summary-card"><span>Signal Actions</span><strong>{{ audit_summary.signals }}</strong></div>
+    <div class="audit-summary-card danger"><span>Failed/Blocked</span><strong>{{ audit_summary.failed }}</strong></div>
+  </section>
+
+  <section class="admin-panel audit-filter-panel">
+    <form class="audit-filter-grid" method="get">
+      <label>Search
+        <input class="admin-search" name="q" value="{{ request.args.get('q','') }}" placeholder="Ref, IP, officer, unit, hash">
+      </label>
+      <label>Unit
+        <select class="admin-search" name="unit_id">
+          <option value="">All units</option>
+          {% for u in unit_options %}<option value="{{ u.id }}" {% if request.args.get('unit_id')|int == u.id %}selected{% endif %}>{{ u.code }} — {{ u.name }}</option>{% endfor %}
+        </select>
+      </label>
+      <label>Action
+        <select class="admin-search" name="action">
+          <option value="">All actions</option>
+          {% for action in action_options %}<option value="{{ action }}" {% if request.args.get('action','') == action %}selected{% endif %}>{{ action }}</option>{% endfor %}
+        </select>
+      </label>
+      <label>Officer
+        <input class="admin-search" name="actor" value="{{ request.args.get('actor','') }}" placeholder="Name, rank, service no">
+      </label>
+      <label>From
+        <input class="admin-search" type="date" name="date_from" value="{{ request.args.get('date_from','') }}">
+      </label>
+      <label>To
+        <input class="admin-search" type="date" name="date_to" value="{{ request.args.get('date_to','') }}">
+      </label>
+      <div class="audit-filter-actions">
+        <button class="btn" type="submit">Apply</button>
+        <a class="btn btn-ghost" href="{{ url_for('admin.logs') }}">Clear</a>
+      </div>
+    </form>
+  </section>
+
+  <section class="admin-panel audit-log-panel">
+    <div class="admin-table-toolbar audit-toolbar">
+      <div><h2>Unit Audit Files</h2><p class="muted">Expand a unit, then expand a folder to inspect trails.</p></div>
+      <input id="logFilter" class="admin-search" placeholder="Quick filter visible events" autocomplete="off">
+    </div>
+
+    <div id="auditFeed" class="audit-file-tree">
+      {% for unit_key, unit_group in audit_unit_groups.items() %}
+      <details class="audit-unit-file" open>
+        <summary>
+          <span class="audit-file-icon">▣</span>
+          <span><strong>{{ unit_group.name }}</strong><small>{{ unit_group.code or 'System scope' }}</small></span>
+          <em>{{ unit_group.rows|length }} event{{ '' if unit_group.rows|length == 1 else 's' }}</em>
+        </summary>
+        <div class="audit-folder-stack">
+          {% for folder_name, folder_rows in unit_group.folders.items() %}
+          <details class="audit-folder" {% if loop.first %}open{% endif %}>
+            <summary><span>📁 {{ folder_name }}</span><em>{{ folder_rows|length }}</em></summary>
+            <div class="audit-table-wrap">
+              <table class="admin-table audit-command-table compact-audit-table">
+                <thead><tr><th>Date/Time</th><th>Action</th><th>Officer</th><th>Target</th><th>Status</th><th>Details</th></tr></thead>
+                <tbody>
+                {% for r in folder_rows %}
+                  <tr class="audit-row">
+                    <td><strong>{{ r.created_label }}</strong><div class="cell-sub">UTC</div></td>
+                    <td><span class="audit-action-badge">{{ r.action }}</span><div class="cell-sub">{{ r.category }}</div></td>
+                    <td><strong>{{ r.actor_name }}</strong><div class="cell-sub">{{ r.rank }}{% if r.service_number %} · {{ r.service_number }}{% endif %}</div></td>
+                    <td>{{ r.target_module or r.signal_ref or '—' }}{% if r.target_id %}<div class="cell-sub">#{{ r.target_id }}</div>{% endif %}</td>
+                    <td><span class="audit-status-badge {{ 'bad' if r.status != 'SUCCESS' else 'good' }}">{{ r.status }}</span></td>
+                    <td>
+                      <details class="audit-details-box">
+                        <summary>View</summary>
+                        <div class="audit-detail-grid">
+                          <div><small>Signal Ref</small><b>{{ r.signal_ref or '—' }}</b></div>
+                          <div><small>Remarks</small><b>{{ r.remarks or '—' }}</b></div>
+                          <div><small>IP</small><b>{{ r.ip or '—' }}</b></div>
+                          <div><small>Event Hash</small><b class="audit-mono">{{ r.event_hash or '—' }}</b></div>
+                        </div>
+                      </details>
+                    </td>
+                  </tr>
+                {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </details>
+          {% endfor %}
+        </div>
+      </details>
+      {% else %}
+        <div class="empty-state">No audit events found.</div>
+      {% endfor %}
+    </div>
+  </section>
+</section>
+
+<script>
+(function(){
+  const input = document.getElementById('logFilter');
+  const feed = document.getElementById('auditFeed');
+  if(!input || !feed) return;
+  input.addEventListener('input', function(){
+    const q = input.value.toLowerCase().trim();
+    feed.querySelectorAll('.audit-row').forEach(row => {
+      row.style.display = !q || row.innerText.toLowerCase().includes(q) ? '' : 'none';
+    });
+    feed.querySelectorAll('.audit-folder').forEach(folder => {
+      const visible = Array.from(folder.querySelectorAll('.audit-row')).some(row => row.style.display !== 'none');
+      folder.style.display = visible ? '' : 'none';
+    });
+    feed.querySelectorAll('.audit-unit-file').forEach(unit => {
+      const visible = Array.from(unit.querySelectorAll('.audit-row')).some(row => row.style.display !== 'none');
+      unit.style.display = visible ? '' : 'none';
+    });
+  });
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,43 @@
+NAF SSS 18 - Super Admin / Unit Account Creation Proper Redo
+
+Correction summary:
+1. Separated Global Users from Unit Accounts.
+   - /admin/users is now for HQ/Admin/Super Admin and View-Only Officer accounts only.
+   - It no longer presents Unit Account as an account type.
+   - It blocks UNIT/ service-number style creation and directs the admin to Unit Accounts.
+   - It blocks Chief Clerk/AO/Commander/Signatory-style appointments from global user editing.
+
+2. Added proper Unit Accounts workspace flow.
+   - New /admin/unit-accounts page.
+   - Unit account creation requires selecting an existing Unit record.
+   - Generated login follows UNIT/UNITCODE.
+   - Only one workspace account is allowed per unit.
+   - Unit account reset/disable actions are available from the Unit Accounts page.
+   - After creation, the workflow redirects to Unit Users for that unit.
+
+3. Cleaned unit record creation.
+   - Create Unit now creates only the unit directory record.
+   - Unit workspace login is created separately from Unit Accounts.
+   - Unit import template now imports unit records only.
+   - Bulk unit import no longer creates unit logins silently.
+
+4. Unit Users remains the correct place for internal unit officers.
+   - Chief Clerk
+   - Admin Officer / Unit AO
+   - Commander
+   - Signatory Officer
+   - Other Officer
+
+5. Permission clarification.
+   - AO and Unit Workspace Account can manage Unit Users.
+   - Commander approves signals, but does not manage user creation by default.
+   - HQ Admin/Super Admin can still supervise across units.
+
+Checks performed:
+- Python compileall passed.
+- Python AST parse passed.
+- CSS brace balance passed.
+- Required templates present.
+
+Note:
+Flask runtime startup check was not performed in this container because Flask is not installed in the execution environment. The code-level checks available here passed.

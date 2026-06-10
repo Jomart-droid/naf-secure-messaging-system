@@ -1,0 +1,103 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="page-head unit-audit-head">
+  <div>
+    <h1>Unit Audit Trail</h1>
+    <p class="page-subtitle">Expandable audit file for unit workflow, users, messages and signal handling.</p>
+  </div>
+  <div class="toolbar">
+    <a class="btn btn-ghost" href="{{ url_for('admin.export_unit_audit_csv', unit_id=unit.id, q=request_args.get('q',''), action=request_args.get('action',''), date_from=request_args.get('date_from',''), date_to=request_args.get('date_to','')) }}">Export CSV</a>
+    <a class="btn btn-primary" href="{{ url_for('msg.unit_workflow_center') }}">Unit Workflow</a>
+  </div>
+</div>
+
+<section class="unit-audit-scope-card">
+  <div>
+    <span class="eyebrow">Audit file</span>
+    <h2>{{ unit.name }}</h2>
+    <p>{{ unit.code }} · {{ unit.level }}</p>
+  </div>
+  <form method="get" class="unit-audit-filter-grid">
+    {% if units %}
+    <label>Unit
+      <select name="unit_id">
+        {% for u in units %}<option value="{{ u.id }}" {% if u.id == unit.id %}selected{% endif %}>{{ u.code }} — {{ u.name }}</option>{% endfor %}
+      </select>
+    </label>
+    {% endif %}
+    <label>Search
+      <input name="q" value="{{ request_args.get('q','') }}" placeholder="Officer, action, signal, hash">
+    </label>
+    <label>Action
+      <select name="action">
+        <option value="">All actions</option>
+        {% for action in action_options %}<option value="{{ action }}" {% if request_args.get('action') == action %}selected{% endif %}>{{ action }}</option>{% endfor %}
+      </select>
+    </label>
+    <label>From
+      <input type="date" name="date_from" value="{{ request_args.get('date_from','') }}">
+    </label>
+    <label>To
+      <input type="date" name="date_to" value="{{ request_args.get('date_to','') }}">
+    </label>
+    <button class="btn btn-primary" type="submit">Apply</button>
+  </form>
+</section>
+
+<div class="workflow-stat-grid unit-audit-stats">
+  <div class="workflow-stat"><span>Total Events</span><b>{{ summary.total }}</b></div>
+  <div class="workflow-stat"><span>Workflow</span><b>{{ summary.workflow }}</b></div>
+  <div class="workflow-stat"><span>Users & Units</span><b>{{ summary.users }}</b></div>
+  <div class="workflow-stat"><span>Messages</span><b>{{ summary.messages }}</b></div>
+  <div class="workflow-stat"><span>Failed/Blocked</span><b>{{ summary.failed }}</b></div>
+</div>
+
+<section class="card unit-audit-card">
+  <div class="section-title-row">
+    <div>
+      <h2>Audit Folders</h2>
+      <p>Open each folder to view the trails under this unit.</p>
+    </div>
+  </div>
+  {% if audit_folders %}
+  <div class="audit-file-tree unit-audit-file-tree">
+    <details class="audit-unit-file" open>
+      <summary>
+        <span class="audit-file-icon">▣</span>
+        <span><strong>{{ unit.code }} Audit File</strong><small>{{ unit.name }}</small></span>
+        <em>{{ audit_rows|length }} record{{ '' if audit_rows|length == 1 else 's' }}</em>
+      </summary>
+      <div class="audit-folder-stack">
+        {% for folder_name, folder_rows in audit_folders.items() %}
+        <details class="audit-folder" {% if loop.first %}open{% endif %}>
+          <summary><span>📁 {{ folder_name }}</span><em>{{ folder_rows|length }}</em></summary>
+          <div class="table-wrap unit-audit-table-wrap">
+            <table class="table table-sm unit-audit-table compact-audit-table">
+              <thead>
+                <tr><th>Time</th><th>Action</th><th>Actor</th><th>Signal / Target</th><th>Status</th><th>Remarks</th><th>Hash</th></tr>
+              </thead>
+              <tbody>
+                {% for r in folder_rows %}
+                <tr>
+                  <td class="mono nowrap">{{ r.created_label }}</td>
+                  <td><span class="pill">{{ r.action }}</span><br><small>{{ r.category }}</small></td>
+                  <td><strong>{{ r.rank }} {{ r.actor_name }}</strong><br><small>{{ r.service_number }} · {{ r.role }}</small></td>
+                  <td>{% if r.signal_ref %}<span class="mono">{{ r.signal_ref }}</span>{% else %}{{ r.target_module or '—' }}{% endif %}<br><small>{{ r.target_id or '' }}</small></td>
+                  <td><span class="pill {% if r.status != 'SUCCESS' %}pill-danger{% else %}pill-success{% endif %}">{{ r.status }}</span></td>
+                  <td>{{ r.remarks or '—' }}</td>
+                  <td class="mono hash-cell" title="{{ r.event_hash }}">{{ r.event_hash[:12] if r.event_hash else '—' }}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </details>
+        {% endfor %}
+      </div>
+    </details>
+  </div>
+  {% else %}
+  <div class="empty-state compact">No audit record matched this filter.</div>
+  {% endif %}
+</section>
+{% endblock %}

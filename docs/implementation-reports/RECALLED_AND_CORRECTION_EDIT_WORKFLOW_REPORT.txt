@@ -1,0 +1,34 @@
+RECALLED + CORRECTION EDIT WORKFLOW FIX
+
+Base build: NAF_SSS_15_SIDEBAR_SCROLL_RESTORED_FIXED.zip
+
+Implemented corrections:
+1. Recalled signals are now editable.
+   - Added /m/broadcasts/<id>/edit GET/POST route.
+   - Recall now redirects straight to the edit screen.
+   - Detail page shows "Edit Recalled Signal" when status is RECALLED.
+
+2. Correction draft is now truly editable.
+   - "Create Correction Draft" has been renamed in UI to "Create Editable Correction Signal".
+   - Creating a correction now opens the edit screen immediately instead of a static detail page.
+   - Existing open correction drafts are reused to avoid duplicate correction drafts.
+
+3. Release control is preserved.
+   - Editing a recalled/correction/draft signal resets old release metadata.
+   - Digital signature, fingerprint, release authority, release timestamp, visible release signature, ACKs, receipts, and stale archive are cleared.
+   - Edited signals must be submitted again and signed/released afresh.
+
+4. Official record control.
+   - Released/archived signals are not directly editable.
+   - A released signal must be recalled first, or a separate correction signal must be created.
+   - The old state is logged in the audit trail.
+
+5. UI clarity.
+   - Detail action buttons now explain the difference:
+     Recall & Edit Signal = edit the same signal after recall.
+     Create Editable Correction Signal = create a separate amendment linked to the original.
+
+Validation performed:
+- Python compile check passed.
+- New template added: app/templates/messaging/broadcast_edit.html
+- ZIP integrity checked after packaging.

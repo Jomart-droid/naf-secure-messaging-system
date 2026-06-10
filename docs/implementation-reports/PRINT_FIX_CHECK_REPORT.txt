@@ -1,0 +1,11 @@
+PRINT FIX CHECK REPORT
+
+Captured fixes:
+1. Print body pagination now uses larger but safe line budgets so page 1 uses more available body space before continuing to page 2.
+2. Footer remains an explicit per-page footer and page count remains backend-generated.
+3. Centre blank cells beneath TO/INFO have horizontal borders removed to avoid unused lines under the TO/INFO section.
+4. Message Instruction remains label-only; the service message text and title fallback are not rendered in the print template.
+5. Python compile check completed successfully with: python -m compileall -q app
+
+Important note:
+The protected downloaded PDF still uses the ReportLab generator, but its footer is drawn in a fixed bottom margin. Browser preview and PDF export are both cleaned up, though exact pixel-perfect matching is only possible if PDF export is later moved to the same HTML-to-PDF engine as print preview.

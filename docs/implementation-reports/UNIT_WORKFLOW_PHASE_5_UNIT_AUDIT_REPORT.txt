@@ -1,0 +1,26 @@
+NAF SSS - UNIT WORKFLOW PHASE 5 IMPLEMENTATION REPORT
+
+Phase 5 implemented: Unit Audit Trail and Accountability Center.
+
+Implemented features:
+1. Added /admin/unit-audit page for unit-level audit visibility.
+2. Unit AO/Commander/unit managers can view only their own unit audit trail.
+3. HQ Admin/Super Admin can choose and inspect any unit audit trail.
+4. Added filters: unit, search text, action, date from, date to.
+5. Added summary cards: Total Events, Workflow, Users & Units, Messages, Failed/Blocked.
+6. Added recent unit events table with action, actor, signal/target, status, remarks, hash.
+7. Added /admin/unit-audit/export.csv for unit audit export.
+8. Added Unit Audit Trail to sidebar for authorised unit managers.
+9. Added Unit Audit Trail to command search.
+10. Added responsive CSS for desktop, tablet, and mobile.
+
+Security scope:
+- Non-HQ users are locked to their own unit_id.
+- HQ Admin/Super Admin may select a unit.
+- Audit export follows the same unit scope rules.
+
+Checks:
+- Python compile check passed.
+- Python AST parse check passed.
+- CSS brace count checked.
+- ZIP integrity check performed after packaging.

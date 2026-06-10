@@ -1,0 +1,29 @@
+NAF SSS 15 - Sidebar and Signal Composer Refinement Report
+
+Date: 2026-05-30
+
+User correction addressed:
+1. Signal Composer V4 layout was too congested.
+2. The Signal Composer should maintain the calmer previous look.
+3. The sidebar had an unwanted Issue / Review Signal button.
+4. The sidebar showed duplicate account actions.
+5. Sidebar needed closer attention to prevent overlap.
+
+Actions completed:
+- Restored the previous calmer Signal Composer template from the stable overlap-fixed build.
+- Removed the additional V4 drafting guide rail that created a congested three-zone layout.
+- Forced the composer layout back to the less-congested previous flow: drafting card first, official preview below.
+- Removed the sidebar Issue / Review Signal CTA button.
+- Removed the duplicate footer Account button and kept only the My Account navigation item.
+- Removed the command-strip Issue / Review quick link to avoid duplicated action buttons.
+- Hardened sidebar text containment, overflow, ellipsis, collapsed mode, and footer layout.
+- Added responsive rules for sidebar and composer to reduce overlap risk on desktop, tablet, and mobile.
+
+Validation performed:
+- Python compile check passed.
+- CSS brace balance check passed.
+- Removed direct template references to the V4 composer assist rail.
+- Removed visible "Issue / Review Signal" sidebar/button text.
+
+Notes:
+The Signal Composer now follows the previous cleaner structure while retaining the improved color/contrast/sidebar foundation from the newer builds.

@@ -1,0 +1,26 @@
+PHASE 4 CORRECTED: AO REVIEW, SIGNATORY CHOICE AND ROUTING
+
+This phase corrects the internal unit workflow after Chief Clerk drafting.
+
+Implemented workflow:
+1. Chief Clerk drafts and forwards to AO.
+2. AO reviews the draft.
+3. AO can return/disapprove with a reason.
+4. If AO is the signatory, AO now signs/endorses internally and forwards to Commander.
+5. If AO is not the signatory, AO selects a unit signatory officer and forwards the signal.
+6. Selected signatory signs/endorses and forwards to Commander.
+7. Commander remains the mandatory final approver before external Sign & Release.
+
+Key corrections:
+- The previous AO button text was misleading: "AO Approve -> Commander". It now reads "AO Sign/Endorse -> Commander".
+- Backend action now treats AO direct-to-Commander route as AO signing/endorsement, not just approval.
+- AO direct signing now sets unit_signatory_id to the AO and records signatory_signed_at.
+- Commander account is required before the AO/signatory route can forward for final approval.
+- Return/disapproval remains controlled with a required reason.
+- Existing final digital Sign & Release remains after Commander approval only.
+
+Checks run:
+- Python compile check
+- Python AST parse check
+- CSS brace balance check
+- ZIP integrity check

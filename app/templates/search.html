@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Advanced Intelligence Search</h1>
+    
+  </div>
+</div>
+<div class="card hud" style="max-width:1200px;">
+  <form method="get" class="form-grid">
+    <div class="grid-2">
+      <label>Search term<input class="input" name="q" value="{{ q }}" placeholder="Signal number, body text, sender, file reference, DTG, fingerprint, archive hash..."></label>
+      <label>Sender<input class="input" name="sender" value="{{ sender }}" placeholder="Full name or service number"></label>
+    </div>
+    <div class="grid-4">
+      <label>Classification<select name="classification"><option value="">All</option>{% for c in ["UNCLASSIFIED","RESTRICTED","CONFIDENTIAL","SECRET","TOP SECRET"] %}<option value="{{ c }}" {% if classification == c %}selected{% endif %}>{{ c }}</option>{% endfor %}</select></label>
+      <label>Status<select name="status"><option value="">All</option>{% for s in ["DRAFT","SUBMITTED","APPROVED","RELEASED","ARCHIVED"] %}<option value="{{ s }}" {% if status == s %}selected{% endif %}>{{ s }}</option>{% endfor %}</select></label>
+      <label>Priority<select name="priority"><option value="">All</option>{% for p in ["GREEN","AMBER","RED"] %}<option value="{{ p }}" {% if priority == p %}selected{% endif %}>{{ p }}</option>{% endfor %}</select></label>
+      <label>Unit<select name="unit_id"><option value="">All</option>{% for u in units %}<option value="{{ u.id }}" {% if unit_id == (u.id|string) %}selected{% endif %}>{{ u.name }} ({{ u.code }})</option>{% endfor %}</select></label>
+    </div>
+    <div class="grid-4">
+      <label>Date from<input type="date" name="date_from" value="{{ date_from }}"></label>
+      <label>Date to<input type="date" name="date_to" value="{{ date_to }}"></label>
+      <label>Attachments<select name="has_attachments"><option value="" {% if not has_attachments %}selected{% endif %}>All</option><option value="yes" {% if has_attachments == 'yes' %}selected{% endif %}>Has attachments</option><option value="no" {% if has_attachments == 'no' %}selected{% endif %}>No attachments</option></select></label>
+      <label>Digital signature<select name="signature_status"><option value="">All</option><option value="valid" {% if signature_status == 'valid' %}selected{% endif %}>Present</option><option value="missing" {% if signature_status == 'missing' %}selected{% endif %}>Missing</option></select></label>
+    </div>
+    <div class="grid-2">
+      <label>Archive integrity<select name="archive_integrity"><option value="">All</option>{% for s in ["VERIFIED","MISMATCH","PENDING"] %}<option value="{{ s }}" {% if archive_integrity == s %}selected{% endif %}>{{ s }}</option>{% endfor %}</select></label>
+      <div class="row" style="gap:10px; align-items:end;"><button class="btn" type="submit">Run search</button><a class="btn ghost" href="{{ url_for('main.search') }}">Reset</a></div>
+    </div>
+  </form>
+</div>
+{% if q or sender or classification or status or priority or unit_id or date_from or date_to or has_attachments or signature_status or archive_integrity %}
+<div class="grid-2" style="margin-top:16px;">
+  <div class="card hud"><div class="row-between"><h2 style="margin:0;">Personnel</h2><span class="muted">{{ users|length }} result(s)</span></div><ul class="list">{% for u in users %}<li><div class="row"><div><b>{{ u.full_name }}</b><div class="meta">{{ u.service_number }} · {{ u.rank or '—' }} · {{ u.specialty or '—' }} · {{ u.role }}</div></div><a class="btn ghost" href="{{ url_for('msg.direct_view', user_id=u.id) }}">Message</a></div></li>{% else %}<li class="empty"><div class="big">No matches</div></li>{% endfor %}</ul></div>
+  <div class="card hud"><div class="row-between"><h2 style="margin:0;">Channels</h2><span class="muted">{{ channels|length }} result(s)</span></div><ul class="list">{% for c in channels %}<li><div class="row"><div><a href="{{ url_for('msg.channel_view', channel_id=c.id) }}"><b>{{ c.name }}</b></a><div class="meta"><span class="pill">{{ c.scope }}</span><span class="muted"> · {{ (c.units|map(attribute="code")|list|join(", ")) or (c.unit.code if c.unit else "") }}</span></div></div><span class="muted mono" style="font-size:12px;">#{{ c.id }}</span></div></li>{% else %}<li class="empty"><div class="big">No matches</div></li>{% endfor %}</ul></div>
+  <div class="card hud" style="grid-column:1 / -1;"><div class="row-between"><h2 style="margin:0;">Signals</h2><span class="muted">{{ broadcasts|length }} result(s)</span></div><ul class="list">{% for b in broadcasts %}<li><div style="display:flex; justify-content:space-between; gap:12px; align-items:flex-start; flex-wrap:wrap;"><div><a href="{{ url_for('msg.broadcast_detail', broadcast_id=b.id) }}"><b>{{ b.title }}</b></a><div class="meta"><span class="pill pill-{{ b.priority|lower }}">{{ b.priority }}</span><span class="pill">{{ b.status }}</span><span class="pill">{{ b.security_classification }}</span><span class="pill">{{ 'Signed' if b.digital_signature else 'Unsigned' }}</span></div><div class="muted" style="font-size:12px; margin-top:4px;">{{ b.originator_number or 'Pending serial' }}{% if b.signature_fingerprint %} · Fingerprint {{ b.signature_fingerprint }}{% endif %}</div><div class="muted" style="font-size:12px; margin-top:2px;">From: {{ b.msg_from or '—' }}{% if b.from_unit %} · Unit: {{ b.from_unit.code }}{% endif %}</div></div><div class="muted mono" style="font-size:12px; text-align:right;">{{ b.created_at.strftime("%Y-%m-%d %H:%M") }}</div></div></li>{% else %}<li class="empty"><div class="big">No matches</div></li>{% endfor %}</ul></div>
+  <div class="card hud"><div class="row-between"><h2 style="margin:0;">Signal archives</h2><span class="muted">{{ archives|length }} result(s)</span></div><ul class="list">{% for a in archives %}<li><div class="row-between" style="gap:10px; flex-wrap:wrap;"><div><a href="{{ url_for('msg.signal_bank_download', archive_id=a.id) }}"><b>{{ a.title }}</b></a><div class="meta">{{ a.signal_number or 'Pending serial' }} · {{ a.integrity_status or 'PENDING' }} · {{ a.sha256 or 'No checksum' }}</div></div><a class="btn ghost" href="{{ url_for('msg.signal_bank') }}?q={{ a.signal_number or a.title }}">Open bank</a></div></li>{% else %}<li class="empty"><div class="big">No matches</div></li>{% endfor %}</ul></div>
+  {% if current_user.role in ['ADMIN','SUPER_ADMIN'] %}<div class="card hud"><div class="row-between"><h2 style="margin:0;">Audit events</h2><span class="muted">{{ audits|length }} result(s)</span></div><ul class="list">{% for a in audits %}<li><div><b>{{ a.action }}</b><div class="meta">{{ a.created_at.strftime('%Y-%m-%d %H:%M:%S') if a.created_at else '' }} · {{ a.event_hash or 'No hash' }}</div><div class="muted">{{ a.details or '' }}</div></div></li>{% else %}<li class="empty"><div class="big">No matches</div></li>{% endfor %}</ul></div>{% endif %}
+</div>
+{% endif %}
+{% endblock %}

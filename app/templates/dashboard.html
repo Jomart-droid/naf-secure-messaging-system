@@ -1,0 +1,187 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="world-dashboard" aria-label="NAF secure messaging command dashboard">
+  <div class="clean-dashboard-topline">
+    <div class="world-eyebrow">Mission control</div>
+    <div class="clean-date-line"><span id="cleanDashDate">Today</span><span>•</span><span id="cleanDashTime">--:-- WAT</span></div>
+  </div>
+
+  <div class="world-hero">
+    <section class="world-card" aria-labelledby="dashWelcomeTitle">
+      <div class="world-eyebrow">{{ current_user.role|replace('_',' ') }} workspace</div>
+      <h1 id="dashWelcomeTitle" class="world-title">Welcome back, {{ current_user.rank or current_user.role }} {{ current_user.full_name }}</h1>
+      {% if is_view_only_officer() %}
+      <p class="world-subtitle">Your access is restricted to authorized signal viewing, printing, download, and archive review. The interface is optimized for quick retrieval and verification.</p>
+      {% else %}
+      <p class="world-subtitle">Your command focus is clear: review new traffic, acknowledge required signals, release approved messages, and keep the audit trail complete.</p>
+      {% endif %}
+      <div class="workflow-identity-card">
+        <div><span>Appointment</span><strong>{{ unit_appointment_label(current_user.appointment) }}</strong></div>
+        <div><span>Workflow duty</span><strong>{{ unit_workflow_responsibility(current_user) }}</strong></div>
+        <div><span>Unit</span><strong>{{ current_user.unit.code if current_user.unit else 'HQ / Global' }}</strong></div>
+      </div>
+      <div class="world-action-row">
+        {% if can_create_signal(current_user) %}
+          <a class="btn btn-primary" href="{{ url_for('msg.broadcasts') }}">Draft Signal</a>
+        {% elif current_user.unit_id %}
+          <a class="btn btn-primary" href="{{ url_for('msg.unit_workflow_center') }}">Open Unit Workflow</a>
+        {% endif %}
+        <a class="btn btn-ghost" href="{{ url_for('msg.signal_bank') }}">Open Signal Bank</a>
+        <button type="button" class="btn btn-ghost" data-command-trigger>Command Search</button>
+      </div>
+    </section>
+
+    <aside class="world-status-card" aria-label="Security and clearance status">
+      <span class="world-eyebrow">Clearance</span>
+      <b>{{ current_user.clearance_level or 'SECRET' }}</b>
+      <small>{{ current_user.unit.code if current_user.unit else 'No unit assigned' }} · Session active · Audit logging enabled</small>
+      <div class="world-system-list" style="margin-top:14px;">
+        <div><span>Identity</span><strong>{{ current_user.service_number }}</strong></div>
+        <div><span>Role</span><strong>{{ current_user.role|replace('_',' ') }}</strong></div>
+        <div><span>Appointment</span><strong>{{ unit_appointment_label(current_user.appointment) }}</strong></div>
+      </div>
+    </aside>
+  </div>
+
+  <div class="world-stat-grid" aria-label="Key work indicators">
+    <a class="world-stat" href="{{ url_for('msg.direct_list') }}">
+      <span>✉</span><strong>{{ unread_direct_count or 0 }}</strong><small>Unread direct messages</small>
+    </a>
+    {% if not is_view_only_officer() %}
+    <a class="world-stat" href="{{ url_for('msg.broadcasts') }}">
+      <span>✓</span><strong>{{ unread_broadcast_count or 0 }}</strong><small>Pending acknowledgements</small>
+    </a>
+    <a class="world-stat" href="{{ url_for('msg.broadcasts') }}">
+      <span>➤</span><strong>{{ signals_7d or 0 }}</strong><small>Signals in recent window</small>
+    </a>
+    {% else %}
+    <a class="world-stat" href="{{ url_for('msg.signal_bank') }}">
+      <span>▣</span><strong>{{ signals_7d or 0 }}</strong><small>Authorized signals</small>
+    </a>
+    {% endif %}
+    <a class="world-stat" href="{{ url_for('main.notifications') }}">
+      <span>◆</span><strong>{{ unread_notification_count or 0 }}</strong><small>Notifications requiring review</small>
+    </a>
+    {% if current_user.unit_id or current_user.role in ['ADMIN','SUPER_ADMIN'] %}
+    <a class="world-stat" href="{{ url_for('msg.unit_workflow_center') }}">
+      <span>↗</span><strong>{{ unit_workflow_counts.action_total if unit_workflow_counts else 0 }}</strong><small>Unit workflow actions</small>
+    </a>
+    {% endif %}
+  </div>
+
+  {% if current_user.unit_id %}
+  <section class="world-panel unit-role-desk" aria-label="Unit workflow role desk">
+    <div class="world-panel-head">
+      <div>
+        <div class="world-eyebrow">Your unit desk</div>
+        <h2>{{ unit_appointment_label(current_user.appointment) }}</h2>
+      </div>
+      <span class="badge-soft badge-blue">{{ current_user.unit.code if current_user.unit else 'UNIT' }}</span>
+    </div>
+    <div class="role-desk-grid">
+      {% if current_user.account_type == 'UNIT' %}
+        <a href="{{ url_for('admin.unit_officers') }}"><strong>Unit Users</strong><span>Create AO, Chief Clerk, Commander and signatory officers.</span></a>
+        <a href="{{ url_for('admin.unit_admin_center') }}"><strong>Unit Admin</strong><span>Monitor setup, workflow and recent audit entries.</span></a>
+      {% elif unit_appointment_label(current_user.appointment) == 'Chief Clerk' %}
+        <a href="{{ url_for('msg.broadcasts') }}"><strong>Drafting Desk</strong><span>Draft signals and forward to AO for review.</span></a>
+        <a href="{{ url_for('msg.unit_workflow_center') }}"><strong>Returned Drafts</strong><span>Correct returned signals and resubmit to AO.</span></a>
+      {% elif unit_appointment_label(current_user.appointment) == 'Admin Officer' %}
+        <a href="{{ url_for('msg.unit_workflow_center') }}"><strong>AO Review Desk</strong><span>Review, return, sign or route drafts to signatory.</span></a>
+        <a href="{{ url_for('admin.unit_officers') }}"><strong>Unit Users</strong><span>Manage unit users and password resets.</span></a>
+      {% elif unit_appointment_label(current_user.appointment) == 'Signatory Officer' %}
+        <a href="{{ url_for('msg.unit_workflow_center') }}"><strong>Signature Desk</strong><span>Sign or return signals routed by AO.</span></a>
+      {% elif unit_appointment_label(current_user.appointment) == 'Commander' %}
+        <a href="{{ url_for('msg.unit_workflow_center') }}"><strong>Final Approval Desk</strong><span>Approve or return signals before final release.</span></a>
+      {% else %}
+        <a href="{{ url_for('msg.unit_direct_list') }}"><strong>Unit Messages</strong><span>Coordinate with authorised members of your unit.</span></a>
+      {% endif %}
+    </div>
+  </section>
+  {% endif %}
+
+  <div class="world-grid-2">
+    <section class="world-panel" aria-labelledby="recentTrafficTitle">
+      <div class="world-panel-head">
+        <div>
+          <div class="world-eyebrow">Current traffic</div>
+          <h2 id="recentTrafficTitle">Recent Signals</h2>
+        </div>
+        <a class="btn btn-ghost" href="{{ url_for('msg.signal_bank') if is_view_only_officer() else url_for('msg.broadcasts') }}">View all</a>
+      </div>
+      <div class="world-message-list">
+        {% for b in broadcasts %}
+          {% set cls = (b.security_classification or b.priority or 'RESTRICTED')|upper %}
+          <a class="world-message-row" href="{{ url_for('msg.broadcast_detail', broadcast_id=b.id) }}">
+            <span class="world-dot"></span>
+            <div class="message-copy">
+              <strong>{{ b.title }}</strong>
+              <small>From: {{ b.msg_from or b.originator_number or 'NAF Unit' }} <span>•</span> To: {{ b.msg_to or 'Authorized recipients' }}</small>
+            </div>
+            <span class="classification-pill class-{{ cls|lower|replace(' ', '-') }}">{{ cls }}</span>
+            <time>{{ b.created_at.strftime('%H:%M') if b.created_at else '—' }}</time>
+          </a>
+        {% else %}
+          <div class="world-empty"><strong>No recent signal traffic.</strong><br>New authorized signals will appear here immediately.</div>
+        {% endfor %}
+      </div>
+    </section>
+
+    <aside class="world-panel" aria-labelledby="systemOverviewTitle">
+      <div class="world-panel-head">
+        <div>
+          <div class="world-eyebrow">Readiness</div>
+          <h2 id="systemOverviewTitle">System Overview</h2>
+        </div>
+      </div>
+      <div class="world-system-list">
+        <div><span>Server status</span><strong class="world-ok">Online ●</strong></div>
+        <div><span>Operational network</span><strong class="world-ok">Secure ●</strong></div>
+        <div><span>Document protection</span><strong class="world-ok">Watermark + Password PDF</strong></div>
+        <div><span>Digital release</span><strong class="world-ok">Signature fingerprint enabled</strong></div>
+        <div><span>Channels</span><strong>{{ channel_total or 0 }}</strong></div>
+      </div>
+      {% if current_user.unit_id or current_user.role in ['ADMIN','SUPER_ADMIN'] %}
+      <div class="unit-workflow-mini" aria-label="Unit workflow summary">
+        <div class="unit-workflow-mini-head">
+          <strong>Unit Workflow</strong>
+          <a href="{{ url_for('msg.unit_workflow_center') }}">Open</a>
+        </div>
+        <div class="unit-workflow-mini-grid">
+          <span><b>{{ unit_workflow_counts.my_action if unit_workflow_counts else 0 }}</b> My action</span>
+          <span><b>{{ unit_workflow_counts.returned if unit_workflow_counts else 0 }}</b> Returned</span>
+          <span><b>{{ unit_workflow_counts.ready_release if unit_workflow_counts else 0 }}</b> Release</span>
+        </div>
+        {% if unit_workflow_preview %}
+          <div class="unit-workflow-mini-list">
+          {% for item in unit_workflow_preview %}
+            <a href="{{ url_for('msg.broadcast_detail', broadcast_id=item.id) }}">
+              <strong>{{ item.ref }}</strong>
+              <span>{{ item.label }} · {{ item.handler }}</span>
+            </a>
+          {% endfor %}
+          </div>
+        {% endif %}
+      </div>
+      {% endif %}
+      <div class="notice" style="margin-top:14px;">
+        <strong>Release rule:</strong> final dispatch requires authority confirmation and audit logging.
+      </div>
+    </aside>
+  </div>
+</section>
+
+<script>
+(function(){
+  function tick(){
+    const now = new Date();
+    const dateEl = document.getElementById('cleanDashDate');
+    const timeEl = document.getElementById('cleanDashTime');
+    if(dateEl){ dateEl.textContent = now.toLocaleDateString(undefined,{weekday:'long', day:'2-digit', month:'long', year:'numeric'}); }
+    if(timeEl){ timeEl.textContent = now.toLocaleTimeString(undefined,{hour:'2-digit', minute:'2-digit'}) + ' WAT'; }
+  }
+  tick();
+  setInterval(tick, 30000);
+})();
+</script>
+{% endblock %}

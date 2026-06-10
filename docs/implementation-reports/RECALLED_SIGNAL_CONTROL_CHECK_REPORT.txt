@@ -1,0 +1,29 @@
+RECALLED SIGNAL CONTROL CHECK REPORT
+
+Package: NAF SSS
+Date: 2026-05-24
+
+Implemented controls:
+1. Recalled signals remain visible for audit/detail viewing.
+2. Recalled signals are marked RECALLED in detail and list views.
+3. Official print preview is hidden in the UI for recalled signals.
+4. Browser print and PDF download routes are blocked server-side for recalled signals.
+5. Signal Bank archive download is blocked server-side for recalled signals.
+6. Broadcast attachment download is blocked server-side for recalled signals.
+7. Acknowledgement is blocked server-side for recalled signals.
+8. ACK deadline and requires_ack are cleared when a signal is recalled.
+9. Recalled signals remain in received signal lists for recipients and issuing/admin users.
+10. Channel signal lists include recalled signals as visible audit records.
+11. Bulk Signal Bank ZIP export excludes recalled signals.
+12. Existing released-signal archive is no longer generated for recalled signals.
+13. Python compile check completed successfully.
+
+Key files changed:
+- app/routes/messaging.py
+- app/templates/messaging/broadcast_detail.html
+- app/templates/messaging/broadcasts.html
+- app/templates/messaging/signal_bank.html
+
+Important behavior:
+RECALLED = visible for audit, but not operationally usable.
+Print, download/export, attachment download, ACK, and signing are blocked for recalled signals.

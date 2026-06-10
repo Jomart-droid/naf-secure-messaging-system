@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="admin-console">
+  <div class="admin-hero-panel">
+    <div class="admin-eyebrow"><span class="pulse-dot"></span> UNIT WORKSPACE ACCESS</div>
+    <h1>Unit Accounts</h1>
+    <p class="muted">A Unit Account is a workspace login linked to an already existing unit. After login, the unit/AO creates Chief Clerk, AO, Commander, Signatory and Other Officer accounts from Unit Users.</p>
+    <div class="admin-hero-actions"><a class="btn btn-ghost" href="{{ url_for('admin.units') }}">Manage Units</a><a class="btn btn-ghost" href="{{ url_for('admin.users') }}">Global Users</a></div>
+  </div>
+
+  <div class="admin-command-grid">
+    <section class="admin-panel">
+      <div class="admin-panel-head"><div><h2>Create Unit Account</h2><p class="muted">Select an existing unit. The login will be generated as UNIT/UNITCODE.</p></div></div>
+      <form method="post" class="admin-form-grid single">{{ csrf_field() }}
+        <label><span>Existing unit</span><select name="unit_id" required><option value="">— Select existing unit —</option>{% for u in units %}{% if not accounts.get(u.id) %}<option value="{{ u.id }}">{{ u.code }} — {{ u.name }}</option>{% endif %}{% endfor %}</select></label>
+        <label><span>Official unit email</span><input type="email" name="unit_email" placeholder="optional"></label>
+        <label><span>Temporary password</span><input type="text" name="unit_password" placeholder="Leave blank to auto-generate"></label>
+        <div class="security-stack">
+          <div class="security-row"><span>Generated login</span><strong>UNIT/UNITCODE</strong></div>
+          <div class="security-row"><span>Purpose</span><strong>Bootstrap unit users</strong></div>
+          <div class="security-row"><span>Scope</span><strong>Selected unit only</strong></div>
+        </div>
+        <button class="btn" type="submit">Create Unit Account</button>
+      </form>
+    </section>
+
+    <section class="admin-panel wide-panel">
+      <div class="admin-table-toolbar">
+        <div><h2>Existing Units & Workspace Status</h2><p class="muted">Create only one workspace account per unit.</p></div>
+        <form method="get" style="display:flex;gap:8px;flex-wrap:wrap;"><input class="admin-search" type="search" name="q" value="{{ search }}" placeholder="Search units…">{% if search %}<a class="btn btn-ghost btn-sm" href="{{ url_for('admin.unit_accounts') }}">Clear</a>{% endif %}</form>
+      </div>
+      <div class="admin-table-wrap">
+        <table class="admin-table">
+          <thead><tr><th>Unit</th><th>Workspace Login</th><th>Email</th><th>Status</th><th>Next Step</th><th>Actions</th></tr></thead>
+          <tbody>
+            {% for u in units %}
+            {% set acct = accounts.get(u.id) %}
+            <tr>
+              <td><div class="cell-title">{{ u.code }}</div><div class="cell-sub">{{ u.name }}</div></td>
+              <td>{% if acct %}<span class="badge-soft badge-blue">{{ acct.service_number }}</span>{% else %}<span class="badge-soft badge-gold">Not created</span>{% endif %}</td>
+              <td>{{ acct.email if acct else '—' }}</td>
+              <td>{% if acct %}{% if acct.is_active_flag %}<span class="badge-soft badge-green">ACTIVE</span>{% else %}<span class="badge-soft badge-red">DISABLED</span>{% endif %}{% else %}<span class="muted">—</span>{% endif %}</td>
+              <td>{% if acct %}<a class="btn btn-sm" href="{{ url_for('admin.unit_officers', unit_id=u.id) }}">Open Unit Users</a>{% else %}<span class="muted">Create workspace login first</span>{% endif %}</td>
+              <td>
+                <div class="table-actions">
+                  {% if acct %}
+                  <form method="post" action="{{ url_for('admin.reset_unit_account_password', user_id=acct.id) }}">{{ csrf_field() }}<button class="btn btn-sm btn-ghost" type="submit">Reset</button></form>
+                  <form method="post" action="{{ url_for('admin.toggle_unit_account', user_id=acct.id) }}">{{ csrf_field() }}<button class="btn btn-sm {% if acct.is_active_flag %}btn-danger{% else %}btn-ghost{% endif %}" type="submit">{{ 'Disable' if acct.is_active_flag else 'Enable' }}</button></form>
+                  {% else %}
+                  <form method="post" action="{{ url_for('admin.create_unit_account', unit_id=u.id) }}">{{ csrf_field() }}<button class="btn btn-sm" type="submit">Quick Create</button></form>
+                  {% endif %}
+                </div>
+              </td>
+            </tr>
+            {% else %}<tr><td colspan="6" class="muted">No unit records found. Create units first.</td></tr>{% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+</section>
+{% endblock %}

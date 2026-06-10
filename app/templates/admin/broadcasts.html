@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="admin-console">
+  <div class="admin-hero-panel">
+    <div class="admin-eyebrow"><span class="pulse-dot"></span> SIGNAL OVERSIGHT CONSOLE</div>
+    <h1>Signals / Broadcasts</h1>
+    
+  </div>
+  <section class="admin-panel">
+    <div class="admin-table-toolbar"><div><h2>Signal Traffic</h2></div><input id="signalFilter" class="admin-search" type="search" placeholder="Search signals…"></div>
+    <div class="admin-table-wrap"><table class="admin-table" id="signalTable"><thead><tr><th>Signal</th><th>Priority</th><th>Issuer</th><th>Status</th><th>Class</th><th>Ticks</th><th>Ack</th><th></th></tr></thead><tbody>
+    {% for b in broadcasts %}{% set st = stats_by_id.get(b.id, {}) %}<tr>
+      <td><div class="cell-title"><a href="{{ url_for('msg.broadcast_detail', broadcast_id=b.id) }}">{{ b.title }}</a></div><div class="cell-sub">{{ b.created_at.strftime('%d %b %Y %H:%M') }}</div></td>
+      <td><span class="badge-soft {% if b.priority in ['FLASH','IMMEDIATE'] %}badge-red{% elif b.priority == 'PRIORITY' %}badge-gold{% else %}badge-blue{% endif %}">{{ b.priority }}</span></td>
+      <td>{{ b.issuer.full_name }}</td><td><span class="badge-soft badge-blue">{{ b.status }}</span></td><td>{{ b.security_classification }}</td>
+      <td><span class="badge-soft">○ {{ st.not_seen or 0 }}</span> <span class="badge-soft">✓✓ {{ st.received or 0 }}</span> <span class="badge-soft">👁 {{ st.read or 0 }}</span></td>
+      <td>{% if b.requires_ack %}<span class="badge-soft badge-green">{{ st.acked or 0 }} acked</span>{% else %}<span class="muted">—</span>{% endif %}</td>
+      <td><a class="btn btn-sm" target="_blank" href="{{ url_for('msg.broadcast_print', broadcast_id=b.id) }}">Print</a></td>
+    </tr>{% else %}<tr><td colspan="8" class="muted">No broadcasts yet.</td></tr>{% endfor %}
+    </tbody></table></div>
+  </section>
+</section>
+<script>(function(){const i=document.getElementById('signalFilter'),t=document.getElementById('signalTable');if(!i||!t)return;i.addEventListener('input',()=>{const q=i.value.toLowerCase();t.querySelectorAll('tbody tr').forEach(r=>r.style.display=!q||r.innerText.toLowerCase().includes(q)?'':'none')});})();</script>
+{% endblock %}

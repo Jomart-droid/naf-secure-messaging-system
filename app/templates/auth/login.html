@@ -1,0 +1,111 @@
+{% extends "base_auth.html" %}
+{% block content %}
+<div class="hud-login" role="region" aria-label="Secure login">
+  <div class="hud-frame" aria-hidden="true"></div>
+  <img class="login-naf-watermark" src="{{ url_for('static', filename='naf_logo.png') }}" alt="" aria-hidden="true">
+
+  <div class="hud-header">
+    <div class="hud-title">SIGN IN</div>
+    <div class="hud-sub">NAF SECURE SIGNAL SYSTEM</div>
+  </div>
+
+  <div class="hud-body">
+    <div class="hud-avatar naf-logo-avatar" aria-hidden="true">
+      <img src="{{ url_for('static', filename='naf_logo.png') }}" alt="">
+    </div>
+
+    {% if maintenance_lock %}
+    <div class="maintenance-lock-panel" role="alert" aria-live="assertive">
+      <div class="maintenance-lock-orb">⚠</div>
+      <div class="maintenance-lock-copy">
+        <strong>SYSTEM TEMPORARILY LOCKED</strong>
+        <span>{{ maintenance_lock.maintenance_banner or 'The secure messaging platform is currently unavailable.' }}</span>
+        <div class="maintenance-lock-grid">
+          <div><small>Reason</small><b>{{ maintenance_lock.maintenance_reason or 'Scheduled maintenance' }}</b></div>
+          <div><small>Expected Return</small><b>{{ maintenance_lock.maintenance_expected_return or 'To be announced by HQ Admin' }}</b></div>
+        </div>
+        <em>HQ/Admin users may sign in to review or lift the system lock. Normal user access is paused.</em>
+      </div>
+    </div>
+    {% endif %}
+
+    <form method="post" action="{{ url_for('auth.login_post') }}" class="hud-form" id="secureLoginForm" autocomplete="on">{{ csrf_field() }}
+      {% if login_notice %}
+        <div class="login-alert premium-login-alert login-warning" role="status" aria-live="polite">
+          <div class="login-alert-icon" aria-hidden="true">i</div>
+          <div>
+            <strong>SESSION ENDED</strong>
+            <span>{{ login_notice }}</span>
+          </div>
+        </div>
+      {% endif %}
+      {% if login_error %}
+        <div class="login-alert premium-login-alert" role="alert" aria-live="assertive">
+          <div class="login-alert-icon" aria-hidden="true">!</div>
+          <div>
+            <strong>ACCESS DENIED</strong>
+            <span>{{ login_error }}</span>
+          </div>
+        </div>
+      {% endif %}
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          {% for category, message in messages %}
+            <div class="login-alert premium-login-alert login-{{ category }}" role="status" aria-live="polite">
+              <div class="login-alert-icon" aria-hidden="true">{{ '✓' if category == 'success' else 'i' }}</div>
+              <div>
+                <strong>{{ 'SYSTEM READY' if category == 'success' else 'SECURE NOTICE' }}</strong>
+                <span>{{ message }}</span>
+              </div>
+            </div>
+          {% endfor %}
+        {% endif %}
+      {% endwith %}
+      <div class="hud-field">
+        <label for="service_number">Service Number</label>
+        <input id="service_number" name="service_number" inputmode="text" autocomplete="username" placeholder="e.g., NAF/12345" value="{{ service_number or '' }}" required autofocus>
+      </div>
+      <div class="hud-field">
+        <label for="password">Password</label>
+        <input id="password" type="password" name="password" autocomplete="current-password" placeholder="••••••••" required>
+      </div>
+
+      <div class="hud-row">
+        <label class="hud-check">
+          <input type="checkbox" name="remember" value="1">
+          <span>Remember me</span>
+        </label>
+
+        {% if setup_available %}
+          <a class="hud-link" href="{{ url_for('main.setup') }}">Run setup</a>
+        {% endif %}
+      </div>
+
+      <button class="hud-btn" id="secureLoginButton" type="submit">
+        <span class="btn-label">LOGIN</span>
+        <span class="btn-loading" aria-hidden="true">AUTHENTICATING SECURE SESSION…</span>
+      </button>
+      <div class="hud-footnote">Unauthorized access is prohibited. All actions are audited.</div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+<script>
+(function(){
+  const form = document.getElementById('secureLoginForm');
+  const btn = document.getElementById('secureLoginButton');
+  if(!form || !btn) return;
+  form.addEventListener('submit', function(){
+    btn.classList.add('is-loading');
+    btn.disabled = true;
+    const existing = document.querySelector('.access-granted-panel');
+    if(existing) existing.remove();
+    const panel = document.createElement('div');
+    panel.className = 'access-granted-panel';
+    panel.setAttribute('role','status');
+    panel.setAttribute('aria-live','polite');
+    panel.innerHTML = '<div class="ag-orb"></div><strong>ACCESS REQUEST SENT</strong><span>Validating credentials • Establishing secure session • Loading command environment</span>';
+    form.insertBefore(panel, form.firstChild);
+  });
+})();
+</script>

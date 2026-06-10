@@ -1,0 +1,48 @@
+NMS SIGNAL ATTACHMENT FEATURE CHECK REPORT
+
+Package modified from: NMS_print_spacing_pagination_toline_final_fix.zip
+
+Implemented:
+1. Signal drafting form now has a Signal Attachment(s) upload panel.
+   - File input name: attachments
+   - Supports multiple files.
+   - Allowed UI extensions: PDF, Word, Excel, PowerPoint, text/CSV, images, ZIP.
+
+2. Existing backend attachment save path is now activated for signals.
+   - app/routes/messaging.py already had _save_broadcast_attachments(...).
+   - The new form field posts files using name="attachments".
+   - Uploaded files save into UPLOAD_FOLDER.
+   - Metadata saves into broadcast_attachment table.
+   - File type and size checks use Settings.allowed_extensions and Settings.max_attachment_mb.
+   - Filenames are secured and stored with UUID prefixes.
+   - SHA256 checksum is saved.
+
+3. Authorized download already exists and was verified in route code.
+   - Route: /m/broadcasts/<broadcast_id>/attachments/<attachment_id>/download
+   - It checks _can_open_signal(current_user, b) before allowing download.
+
+4. Signal detail page already displays attachments.
+   - Template: app/templates/messaging/broadcast_detail.html
+   - Recipients can download attached files from the signal detail page.
+
+5. Printable/exported signal now references attachment filenames.
+   - Added _broadcast_attachment_print_block(...).
+   - Print preview appends ATTACHMENT(S): filename list to the official TEXT section.
+   - ReportLab PDF export path also appends the same attachment filename list.
+   - Attached file contents are not embedded into the signal body; only filenames are listed.
+
+6. Digital signature payload now includes attachment metadata.
+   - Filename, SHA256, and size are included to strengthen integrity tracking.
+
+Checks performed:
+- Python compileall completed successfully for app/.
+- Verified broadcast_attachment model exists.
+- Verified save route exists.
+- Verified secure download route exists.
+- Verified signal detail attachment display exists.
+- Verified new attachment form input exists.
+- Verified print/export attachment reference helper exists.
+
+Important operational note:
+- Existing signals will not have attachments unless attachments are added during drafting.
+- If using an old SQLite database without the broadcast_attachment table, db.create_all() should create it on startup.

@@ -1,0 +1,15 @@
+SIDEBAR BRAND TEXT VISIBILITY FIX - NAF SSS 18
+
+Issue fixed:
+- The sidebar brand title/subtitle were being cut off with ellipsis because the overlap-protection rule applied nowrap + overflow hidden to the brand text.
+
+Correction applied:
+- Brand title and subtitle now wrap cleanly in expanded and mobile sidebar mode.
+- Normal nav/user/status text still uses ellipsis to prevent sidebar overlap.
+- Collapsed sidebar still hides brand text and shows only the logo.
+- Existing sidebar scrollbar behaviour is preserved.
+
+Validation:
+- CSS braces checked.
+- Python source compile check performed.
+- ZIP integrity checked after packaging.

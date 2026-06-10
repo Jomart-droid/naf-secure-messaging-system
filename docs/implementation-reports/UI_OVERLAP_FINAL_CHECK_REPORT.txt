@@ -1,0 +1,15 @@
+UI OVERLAP FINAL CHECK REPORT
+
+Fixed areas:
+1. Signal Draft workflow rail overlap in dark/light modes.
+2. Sidebar expanded/collapsed/mobile conflicts caused by multiple historical CSS passes.
+3. Composer pane containment so workflow steps and form cards cannot bleed into each other.
+4. Responsive fallback: broadcast workspace stacks earlier on narrower screens so the workflow rail has enough room.
+5. Added final CSS overrides at the end of app.css to ensure older rules cannot override the fixed layout.
+
+Validation performed:
+- Python source compile check.
+- CSS brace balance check.
+- ZIP integrity test after repackaging.
+
+Result: The sidebar and signal drafting workflow rail have been hardened against overlap before packaging.

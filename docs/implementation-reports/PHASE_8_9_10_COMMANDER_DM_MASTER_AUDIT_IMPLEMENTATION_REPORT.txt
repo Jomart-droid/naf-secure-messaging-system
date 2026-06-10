@@ -1,0 +1,41 @@
+NAF SSS - Commander DM, Master Audit and Expandable Unit Audit Implementation Report
+
+Build source: NAF_SSS_18_UNIT_WORKFLOW_PHASE_7_SLA_REMINDERS_IMPLEMENTED.zip
+
+Implemented in three phases:
+
+PHASE 8 - Unit Commander External Direct Messaging
+- Added can_external_direct_messages(user) and can_direct_message_user(sender, recipient) guards.
+- Unit Commanders and HQ/Admin users can now message outside their own unit.
+- Normal unit officers remain limited to same-unit direct messaging unless given higher permission.
+- Direct message list now groups contacts into My Unit, Other Unit Commanders, HQ/Admin, and Other Authorised Officers.
+- Direct message thread route now blocks unauthorised external messaging and records DIRECT_MESSAGE_ACCESS_DENIED.
+- External direct messages now record EXTERNAL_DIRECT_MESSAGE_SENT with sender/recipient unit metadata.
+
+PHASE 9 - Super Admin Master Audit Trail
+- Super Admin Audit Logs page is now presented as a Master Audit Trail.
+- The page captures and displays all available audit rows across units, users, signals, messages, access, print/export and system events.
+- Added unit filter to the master audit query.
+- Added unit and actor summary counts.
+- Master audit can be exported with current filters, including unit filter.
+- Sidebar/command search wording updated from Audit Logs to Master Audit Trail.
+
+PHASE 10 - Expandable Unit Audit File View
+- Unit Audit Trail now renders as an expandable audit file instead of only a flat table.
+- Audit rows are grouped into folders:
+  1. Signal & Workflow Actions
+  2. Messages
+  3. Users & Unit Management
+  4. Security & Access
+  5. System, Print & Export
+  6. Other Events
+- Super Admin Master Audit also shows expandable unit files, with expandable audit folders inside each unit.
+- Unit AO/Commander still see their unit scope only through Unit Audit Trail.
+- HQ/Admin/Super Admin can filter/select units where permitted.
+
+Validation performed:
+- Python compile check passed for all app Python files.
+- Jinja template syntax parse passed for all templates.
+- JavaScript syntax check passed for app/static/*.js.
+- CSS brace balance passed.
+- ZIP integrity test passed after packaging.

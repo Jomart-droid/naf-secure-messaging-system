@@ -1,0 +1,29 @@
+TABLE PRINT FIX CHECK REPORT
+
+Purpose:
+- Fix signal body tables being printed/exported as ordinary plain text.
+
+Files changed:
+1. app/routes/messaging.py
+   - Reworked _paginate_signal_html() so it no longer converts the whole signal body to plain text.
+   - Preserves safe rich HTML blocks including table, thead, tbody, tr, th, and td.
+   - Keeps tables as real HTML tables in print preview/download HTML.
+   - Splits oversized tables by rows where possible and repeats table header rows.
+   - Still paginates long normal paragraphs on safe word boundaries.
+
+2. app/templates/messaging/broadcast_print.html
+   - Improved print CSS for signal-body tables.
+   - Added fixed table layout, cell borders, word wrapping, and page-break rules.
+   - Kept signal body text justified.
+
+Existing confirmed support already present:
+- app/templates/messaging/broadcasts.html already uses TinyMCE with table plugin enabled.
+- app/routes/messaging.py sanitization already allows table-related tags.
+
+Checks run:
+- Python compile check passed for app/routes/messaging.py.
+- Full compileall check passed for app/.
+- Static check confirmed table editor plugin and print table CSS are present.
+
+Important note:
+- Very large tables may still span multiple pages, but they now remain tables instead of being flattened into normal text.

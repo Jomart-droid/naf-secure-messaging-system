@@ -1,0 +1,60 @@
+NAF SSS - Signature Pad Release Fix Report
+
+Date: 2026-05-30
+
+Summary
+-------
+Implemented proper mouse/touch/stylus signature capture in the Sign & Release workflow.
+The system no longer depends on draft-time signature image upload for the official release signature.
+The releasing officer now draws the signature at the exact point of password-confirmed release.
+
+Files changed
+-------------
+1. app/routes/messaging.py
+   - Added _save_drawn_signature_image() to validate and persist canvas signature data.
+   - Added _signature_file_sha256() to bind the visible release signature image into the digital signature payload.
+   - Updated _broadcast_signature_payload() with backward-compatible image-hash support.
+   - Updated _verify_broadcast_signature() to verify new signatures and still accept legacy signatures generated before image-hash binding.
+   - Updated broadcast_sign() to require signature_pad_data before release.
+   - Blocks re-signing already verified released signals.
+   - Saves the drawn signature before generating the HMAC digital signature/fingerprint.
+
+2. app/templates/messaging/broadcast_detail.html
+   - Added release signature pad UI.
+   - Supports pointer events for mouse, touch, and stylus/pen.
+   - Added clear button and client-side prevention of empty signature submission.
+   - Added release form guidance explaining that the drawn signature is locked into the digital fingerprint.
+
+3. app/templates/messaging/broadcasts.html
+   - Removed draft-time visible signature image upload from the signal drafting UI.
+   - Replaced it with guidance that official signature capture happens during Sign & Release.
+
+Security / workflow effect
+--------------------------
+- A submitted/approved signal cannot be released without:
+  1. authorised release role,
+  2. exact account name confirmation,
+  3. password confirmation,
+  4. drawn signature capture.
+- The drawn signature is saved as the official releasing_signature_image.
+- The signature image checksum is included in newly generated digital signatures.
+- If the visible signature image changes after release, new-signature verification fails.
+- Legacy signatures remain verifiable to avoid breaking older demo data.
+
+Checks performed
+----------------
+- Python compileall passed.
+- Python AST parse passed.
+- Verified the signature pad fields exist in broadcast_detail.html.
+- Verified the official print template still renders the saved signature image and digital fingerprint.
+
+Recommended manual test
+-----------------------
+1. Login as an authorised releasing officer.
+2. Draft a signal and submit it.
+3. Open signal detail.
+4. Draw signature with mouse/touch/stylus.
+5. Enter exact account name and password.
+6. Click Sign & Release Signal.
+7. Confirm print/download shows the drawn signature and DIGITALLY VERIFIED fingerprint.
+8. Confirm the Sign & Release panel disappears after successful release.

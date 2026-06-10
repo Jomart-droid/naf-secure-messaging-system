@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="admin-console">
+  <div class="admin-hero-panel">
+    <div class="admin-eyebrow"><span class="pulse-dot"></span> COMMAND HIERARCHY REGISTRY</div>
+    <h1>NAF Unit Administration</h1>
+    
+    <div class="admin-hero-actions"><a class="btn" href="{{ url_for('admin.unit_accounts') }}">Unit Accounts</a><a class="btn btn-ghost" href="{{ url_for('admin.units_tree') }}">View Hierarchy Tree</a><a class="btn btn-ghost" href="{{ url_for('admin.units_import_template') }}">Download Unit Import Template</a></div>
+  </div>
+  <div class="admin-command-grid">
+    <section class="admin-panel">
+      <div class="admin-panel-head"><div><h2>Create Unit Record</h2><p class="muted">This only creates the unit in the directory. Create its workspace login from Unit Accounts.</p></div></div>
+      <form method="post" class="admin-form-grid single">{{ csrf_field() }}
+        <label><span>Unit name</span><input name="name" required></label>
+        <label><span>Unit code</span><input name="code" required></label>
+        <label><span>Level</span><select name="level">{% for lv in UnitLevel %}<option value="{{ lv.value }}">{{ lv.value }}</option>{% endfor %}</select></label>
+        <label><span>Parent unit</span><select name="parent_id"><option value="">— No parent —</option>{% for pu in all_units %}<option value="{{ pu.id }}">{{ pu.code }} — {{ pu.name }}</option>{% endfor %}</select></label>
+        <button class="btn" type="submit">Create Unit</button>
+      </form>
+    </section>
+
+    <section class="admin-panel">
+      <div class="admin-panel-head"><div><h2>Bulk Import Units</h2><p class="muted">Upload CSV/XLSX. Required columns: unit_code, unit_name. Optional: level, parent_code. Unit accounts are created separately after import.</p></div></div>
+      <form method="post" action="{{ url_for('admin.import_units') }}" enctype="multipart/form-data" class="admin-form-grid single">{{ csrf_field() }}
+        <label><span>Unit import file</span><input type="file" name="import_file" accept=".csv,.xlsx" required></label>
+        <div class="security-stack">
+          <div class="security-row"><span>Unit records</span><strong>CREATE / UPDATE</strong></div>
+          <div class="security-row"><span>Unit accounts</span><strong>CREATE SEPARATELY</strong></div>
+          <div class="security-row"><span>Security</span><strong>LINKED TO EXISTING UNIT</strong></div>
+        </div>
+        <button class="btn" type="submit">Import Units</button>
+      </form>
+    </section>
+    <section class="admin-panel">
+      <div class="admin-table-toolbar"><div><h2>Unit Directory</h2><p class="muted">{{ total_units }} match{{ '' if total_units == 1 else 'es' }}</p></div><form method="get" style="display:flex;gap:8px;flex-wrap:wrap;"><input class="admin-search" type="search" name="q" value="{{ search }}" placeholder="Search units…">{% if search %}<a class="btn btn-ghost btn-sm" href="{{ url_for('admin.units') }}">Clear</a>{% endif %}</form></div>
+      <div class="admin-card-list">
+      {% for u in units %}
+        <article class="admin-record-card">
+          <div class="record-top"><div><div class="cell-title">{{ u.code }} — {{ u.name }}</div><div class="cell-sub">Parent: {{ u.parent.code if u.parent else 'None' }}</div></div><span class="badge-soft badge-blue">{{ u.level }}</span></div>
+          <div class="record-actions">
+            <a class="btn btn-sm" href="{{ url_for('admin.unit_officers', unit_id=u.id) }}">Unit Users</a>
+            <a class="btn btn-sm btn-ghost" href="{{ url_for('admin.unit_accounts', q=u.code) }}">Unit Account</a>
+            <a class="btn btn-sm btn-ghost" href="{{ url_for('admin.edit_unit', unit_id=u.id) }}">Edit</a>
+            <form method="post" action="{{ url_for('admin.delete_unit', unit_id=u.id) }}" onsubmit="return confirm('Delete unit?');">{{ csrf_field() }}<button class="btn btn-sm danger" type="submit">Delete</button></form>
+          </div>
+        </article>
+      {% else %}<div class="muted">No units found.</div>{% endfor %}
+      </div>
+      {% if pagination.pages > 1 %}<div class="pagination-bar"><div class="muted">Showing {{ ((pagination.page - 1) * pagination.per_page) + 1 }}–{{ ((pagination.page - 1) * pagination.per_page) + (units|length) }} of {{ total_units }}</div><div class="pagination-links">{% if pagination.has_prev %}<a class="btn btn-ghost btn-sm" href="{{ url_for('admin.units', page=pagination.prev_num, q=search) }}">Previous</a>{% endif %}<span class="page-chip">Page {{ pagination.page }} of {{ pagination.pages }}</span>{% if pagination.has_next %}<a class="btn btn-ghost btn-sm" href="{{ url_for('admin.units', page=pagination.next_num, q=search) }}">Next</a>{% endif %}</div></div>{% endif %}
+    </section>
+  </div>
+</section>
+{% endblock %}

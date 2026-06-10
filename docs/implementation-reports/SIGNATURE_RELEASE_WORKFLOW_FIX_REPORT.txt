@@ -1,0 +1,76 @@
+NAF SSS 12(1) - Signature/Release Workflow Fix Report
+=======================================================
+
+Date: 2026-05-30
+
+Main problem fixed
+------------------
+The previous compose form could create a signal directly as RELEASED before the signal was digitally signed. This meant an official signal could be delivered, printed, downloaded, or archived while still showing an awaiting/manual signature state.
+
+Fixes applied
+-------------
+1. Compose form now submits as SUBMITTED, not RELEASED.
+   - Changed hidden workflow_action from RELEASED to SUBMITTED.
+   - Changed UI wording from Attach & Release to Attach & Submit.
+   - Changed main button from Release Signal to Submit Signal for Release.
+
+2. Release now requires digital signing.
+   - The /broadcasts/<id>/sign route now performs both actions together:
+     a. validates signer name,
+     b. validates signer password,
+     c. applies release authority metadata,
+     d. computes the HMAC digital signature,
+     e. changes status to RELEASED,
+     f. creates receipts,
+     g. sends notifications,
+     h. refreshes Signal Bank archive.
+
+3. Unsigned release is now blocked by workflow.
+   - New signals cannot become RELEASED directly from the compose form.
+   - RELEASED status is only applied inside the password-backed signing route.
+   - Archive generation refuses unsigned or unverifiable released signals.
+
+4. Signal Bank archive generation corrected.
+   - Archive generation now regenerates after signing/release.
+   - It first uses the same HTML print-preview PDF engine used by browser print/download, so archive PDF and printable PDF stay visually consistent.
+   - Legacy ReportLab PDF is kept only as fallback if Chrome/Edge PDF generation is unavailable.
+
+5. Print/download guard added.
+   - Official print preview and protected PDF export are now blocked for SUBMITTED/DRAFT/APPROVED signals.
+   - They become available only after signed release.
+
+6. Channel validation fixed.
+   - Frontend validation now accepts CHANNEL delivery when a channel is selected.
+   - It no longer wrongly demands To unit/list/all-units for channel signals.
+
+7. Signature UI cleaned.
+   - Manual signing label changed to Release authority validation.
+   - Button changed to Sign & Release Signal.
+   - Long signature duplication on the detail page was reduced into a cleaner Release Authority row.
+   - Official print now shows a compact Digital Verification fingerprint under the release signature/rank.
+
+Files changed
+-------------
+- app/routes/messaging.py
+- app/templates/messaging/broadcasts.html
+- app/templates/messaging/broadcast_detail.html
+- app/templates/messaging/broadcast_print.html
+
+Validation
+----------
+- Ran Python compileall successfully across app/.
+- Confirmed compose form no longer contains workflow_action value="RELEASED".
+- Confirmed Sign & Release action is present.
+- Confirmed print/export guards are present.
+
+Recommended manual test
+-----------------------
+1. Login as Admin/Commander.
+2. Create a signal.
+3. Confirm it opens as SUBMITTED and does not notify recipients yet.
+4. Confirm print/download buttons are blocked before signing.
+5. Use Sign & Release Signal with the exact account name and password.
+6. Confirm status becomes RELEASED.
+7. Confirm recipients receive notification.
+8. Confirm official print and protected PDF show digital verification fingerprint.
+9. Confirm Signal Bank archive shows VERIFIED integrity.

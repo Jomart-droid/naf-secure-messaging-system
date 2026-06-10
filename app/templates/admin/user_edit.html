@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="admin-console">
+  <div class="admin-hero-panel">
+    <div class="admin-eyebrow"><span class="pulse-dot"></span> GLOBAL SECURITY PROFILE</div>
+    <h1>{{ u.full_name }}</h1>
+    <p>{{ u.service_number }}{% if u.rank %} · {{ u.rank }}{% endif %}{% if u.appointment %} · {{ u.appointment }}{% endif %}. Manage global/view-only identity, clearance, unit mapping and password reset.</p>
+    <div class="admin-hero-actions"><a class="btn btn-ghost" href="{{ url_for('admin.users') }}">Back to Users</a></div>
+  </div>
+
+  <div class="admin-kpi-grid">
+    <div class="admin-kpi"><span>Role</span><strong style="font-size:24px">{% if u.role == 'OFFICER' %}VIEW-ONLY{% elif u.role == 'ADMIN' %}HQ ADMIN{% else %}{{ u.role }}{% endif %}</strong><small>Action permission</small></div>
+    <div class="admin-kpi"><span>Clearance</span><strong style="font-size:24px">{{ u.clearance_level }}</strong><small>Information access</small></div>
+    <div class="admin-kpi"><span>Unit</span><strong style="font-size:24px">{{ u.unit.code if u.unit else '—' }}</strong><small>Assigned structure</small></div>
+    <div class="admin-kpi"><span>Account Scope</span><strong style="font-size:24px">GLOBAL</strong><small>Not a unit workspace user</small></div>
+  </div>
+
+  <div class="admin-command-grid">
+    <section class="admin-panel">
+      <div class="admin-panel-head"><div><h2>Global Profile & Access</h2><p>For unit workspace accounts use Unit Accounts. For Chief Clerk, AO, Commander or Signatory use Unit Users.</p></div></div>
+      <form method="post" class="admin-form-grid">{{ csrf_field() }}
+        <label><span>Full name</span><input name="full_name" value="{{ u.full_name }}" required></label>
+        <label><span>Service number</span><input name="service_number" value="{{ u.service_number }}" required></label>
+        <label><span>Official email</span><input type="email" name="email" value="{{ u.email or '' }}"></label>
+        <label><span>Rank</span><select name="rank"><option value="">— Select rank —</option>{% for r in rank_options %}<option value="{{ r }}" {% if u.rank==r %}selected{% endif %}>{{ r }}</option>{% endfor %}</select></label>
+        <label><span>Appointment</span><input name="appointment" value="{{ u.appointment or '' }}" placeholder="e.g., View-Only Officer / HQ Admin"></label>
+        <label><span>Specialty</span><input name="specialty" value="{{ u.specialty or '' }}" placeholder="e.g., Air Traffic Control"></label>
+        <label><span>Role</span><select name="role">{% for val,label in role_options %}<option value="{{ val }}" {% if u.role==val %}selected{% endif %}>{{ label }}</option>{% endfor %}{% if current_user.role == 'SUPER_ADMIN' %}<option value="SUPER_ADMIN" {% if u.role=='SUPER_ADMIN' %}selected{% endif %}>SUPER ADMIN</option>{% endif %}</select></label>
+        <label><span>Clearance</span><select name="clearance_level">{% for c in ["UNCLASSIFIED","RESTRICTED","CONFIDENTIAL","SECRET","TOP SECRET"] %}<option value="{{ c }}" {% if u.clearance_level==c %}selected{% endif %}>{{ c }}</option>{% endfor %}</select></label>
+        <label><span>Unit</span><select name="unit_id"><option value="">—</option>{% for un in units %}<option value="{{ un.id }}" {% if u.unit_id==un.id %}selected{% endif %}>{{ un.code }} — {{ un.name }}</option>{% endfor %}</select></label>
+        <label><span>Auto-set clearance from rank</span><span class="security-row"><input type="checkbox" name="auto_clearance"> Apply on save</span></label>
+        <label><span>Account status</span><span class="security-row"><input type="checkbox" name="is_active_flag" {% if u.is_active_flag %}checked{% endif %}> Active account</span></label>
+        <button class="btn" type="submit">Save Profile Changes</button>
+      </form>
+    </section>
+
+    <section class="admin-panel">
+      <div class="admin-panel-head"><div><h2>Security Controls</h2><p>Password reset is logged. Temporary passwords should be changed after first login.</p></div></div>
+      <div class="security-stack">
+        <div class="security-row"><span>View-only officers</span><b>No signal drafting/sending</b></div>
+        <div class="security-row"><span>Unit workflow users</span><b>Created in Unit Users</b></div>
+        <div class="security-row"><span>HQ Admin</span><b>Full administration</b></div>
+      </div>
+      <form method="post" action="{{ url_for('admin.reset_user_password', user_id=u.id) }}" class="admin-form-grid single" style="margin-top:14px;">{{ csrf_field() }}
+        <label><span>New password</span><input type="password" name="password" placeholder="New strong password"></label>
+        <button class="btn danger" type="submit">Reset Password</button>
+      </form>
+    </section>
+  </div>
+</section>
+{% endblock %}

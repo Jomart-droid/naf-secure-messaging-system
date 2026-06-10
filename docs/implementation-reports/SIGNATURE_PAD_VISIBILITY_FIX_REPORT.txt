@@ -1,0 +1,24 @@
+SIGNATURE PAD VISIBILITY FIX REPORT
+
+Issue found:
+- The first signature-pad patch placed the signature-pad CSS and JavaScript after the Jinja {% endblock %} line in broadcast_detail.html.
+- In an extending Jinja template, content outside the content block may not be rendered by the base layout. This made the canvas logic unreliable and left the page without a clear visible signing area.
+- The previous form layout also used a compact grid, which could make the canvas area feel hidden or squeezed on some screens.
+
+Fix applied:
+- Moved the signature pad CSS and JavaScript inside the active content block before {% endblock %}.
+- Rebuilt the Sign & Release panel into a clear vertical workflow.
+- Added a large white signature box with green border and visible SIGN HERE indicator.
+- Added clearer button text: Clear signature.
+- Added support for mouse, touch, stylus/pen, plus fallback events for older browsers.
+- Improved drawing feedback so ink appears immediately on pointer/touch down, not only after movement.
+- Added a visible user hint explaining where and how to sign.
+- Kept password confirmation and full-name confirmation intact.
+
+Files changed:
+- app/templates/messaging/broadcast_detail.html
+
+Validation:
+- Python compile check passed.
+- Signature pad JS/CSS now lives inside the rendered template block.
+- The release signature canvas now has explicit width/height attributes and visible CSS styling.

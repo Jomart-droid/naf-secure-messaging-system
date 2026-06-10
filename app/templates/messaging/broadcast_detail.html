@@ -1,0 +1,579 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="toprow world-detail-head">
+  <div>
+    <h1>{{ b.title }}</h1>
+    <div class="muted">
+      Priority: <span class="pill pill-{{ b.priority|lower }}">{{ b.priority }}</span>
+      · Status: <span class="pill {% if b.status == 'RECALLED' or b.recalled_at %}recalled-pill{% endif %}">{{ b.status }}</span>
+      · Classification: <span class="pill">{{ b.security_classification or "RESTRICTED" }}</span>
+      · Issuer: {{ b.issuer.full_name }} ({{ b.issuer.service_number }})
+      · {{ b.created_at.strftime("%d %b %Y %H:%M") }}
+    </div>
+    <div class="muted" style="margin-top:6px;">Signal number: {{ b.originator_number or "Pending serial" }}</div>
+  </div>
+  <div class="row signal-actions" style="gap:10px;">
+    <a class="btn" href="{{ url_for('msg.broadcasts') }}">Back</a>
+    {% if b.status == 'RECALLED' or b.recalled_at %}
+      <span class="pill recalled-pill">PRINT/DOWNLOAD DISABLED — RECALLED</span>
+    {% elif b.status not in ['RELEASED', 'ARCHIVED'] %}
+      <span class="pill">PRINT/DOWNLOAD LOCKED UNTIL DIGITAL RELEASE</span>
+    {% else %}
+      <a class="btn btn-ghost" href="{{ url_for('msg.broadcast_print', broadcast_id=b.id, preview=1) }}">Official print preview</a>
+      <a class="btn" href="{{ url_for('msg.broadcast_print_pdf', broadcast_id=b.id) }}">Download Protected PDF</a>
+      <a class="btn btn-ghost" target="_blank" href="{{ url_for('msg.broadcast_print', broadcast_id=b.id) }}">Browser Print</a>
+    {% endif %}
+  </div>
+</div>
+
+<section class="world-case-strip" aria-label="Signal case summary">
+  <div><span>Signal Status</span><b>{{ b.status }}</b></div>
+  <div><span>Originator No.</span><b>{{ b.originator_number or 'Pending' }}</b></div>
+  <div><span>Classification</span><b>{{ b.security_classification or 'RESTRICTED' }}</b></div>
+  <div><span>Precedence</span><b>{{ b.signal_precedence or b.precedence_action or 'ROUTINE' }}</b></div>
+  <div><span>Integrity</span><b>{% if signature_valid %}Verified{% elif signature_meta.is_signed %}Signed{% else %}Pending{% endif %}</b></div>
+</section>
+
+{% if unit_workflow and unit_workflow.is_unit_workflow %}
+<section class="world-panel unit-workflow-panel" aria-label="Unit internal signal workflow">
+  <div class="world-panel-head">
+    <div>
+      <div class="world-eyebrow">Unit internal routing</div>
+      <h2>{{ unit_workflow.label }}</h2>
+    </div>
+    <span class="pill">Pending with: {{ unit_workflow.handler_label }}</span>
+  </div>
+  <div class="phase4-overview-grid unit-workflow-grid">
+    <div class="phase4-tile"><span>Chief Clerk / Drafter</span><b>{{ b.drafter_name or b.issuer.full_name }}</b><small>{{ b.drafter_rank or b.issuer.rank or '—' }}</small></div>
+    <div class="phase4-tile"><span>Admin Officer</span><b>{{ unit_workflow.ao.full_name if unit_workflow.ao else 'Not assigned' }}</b><small>{{ unit_workflow.ao.rank if unit_workflow.ao else 'Add AO under Unit Officers' }}</small></div>
+    <div class="phase4-tile"><span>Signatory</span><b>{{ unit_workflow.signatory.full_name if unit_workflow.signatory else 'AO / selected officer' }}</b><small>{{ unit_workflow.signatory.rank if unit_workflow.signatory else 'Selected during AO review' }}</small></div>
+    <div class="phase4-tile"><span>Commander</span><b>{{ unit_workflow.commander.full_name if unit_workflow.commander else 'Not assigned' }}</b><small>{{ unit_workflow.commander.rank if unit_workflow.commander else 'Required before final release' }}</small></div>
+  </div>
+  <div class="workflow-due-panel due-{{ workflow_due.severity }}">
+    <div><span>Workflow age</span><b>{{ workflow_due.age_text }}</b></div>
+    <div><span>SLA state</span><b>{{ workflow_due.label }}</b></div>
+    <div><span>Due by</span><b>{{ workflow_due.due_at.strftime('%d %b %Y %H:%M') }}</b></div>
+    {% if unit_workflow.handler and unit_workflow.handler.id != current_user.id and can_manage_workflow %}
+      <form method="post" action="{{ url_for('msg.unit_workflow_remind', broadcast_id=b.id) }}" data-no-loader="true">
+        <button class="btn btn-ghost btn-sm" type="submit">Send Reminder</button>
+      </form>
+    {% endif %}
+  </div>
+  {% if unit_workflow.return_reason %}
+    <div class="callout unit-return-note"><b>Return reason:</b> {{ unit_workflow.return_reason }}</div>
+  {% endif %}
+</section>
+{% endif %}
+
+<section class="world-panel release-authority-summary" aria-label="Release authority and verification summary">
+  <div class="world-panel-head">
+    <div>
+      <div class="world-eyebrow">Official release authority</div>
+      <h2>Signature & Integrity Status</h2>
+    </div>
+    {% if signature_valid %}<span class="verified-stamp">✓ Digitally verified</span>{% elif signature_meta.is_signed %}<span class="pill">Signed — verification pending</span>{% else %}<span class="pill">Awaiting release signature</span>{% endif %}
+  </div>
+  <div class="phase4-overview-grid">
+    <div class="phase4-tile"><span>Signer</span><b>{{ signature_meta.signer_name or 'Pending' }}</b><small>{{ signature_meta.signer_rank or '—' }}</small></div>
+    <div class="phase4-tile"><span>Signed at</span><b>{{ signature_meta.signed_at_text or '—' }}</b><small>Release timestamp</small></div>
+    <div class="phase4-tile"><span>Fingerprint</span><b class="mono">{{ signature_meta.fingerprint or 'Pending' }}</b><small>Digital integrity proof</small></div>
+    <div class="phase4-tile"><span>Document control</span><b>{{ b.status }}</b><small>Watermark and PDF password enforced</small></div>
+  </div>
+</section>
+
+<div class="card hud" style="overflow:auto;">
+  {% if b.escalated_at %}
+    <div class="callout" style="margin-bottom:12px; border-color:rgba(255,209,102,.35); background:rgba(255,209,102,.08);">
+      <b>Escalated:</b> {{ b.escalation_note or "ACK overdue" }} · {{ b.escalated_at.strftime('%d %b %Y %H:%M') }}
+    </div>
+  {% endif %}
+
+  {% if b.status == 'RECALLED' %}
+    <div class="phase4-recall-banner">
+      <b>SIGNAL RECALLED</b>
+      <span>{{ b.recall_reason or 'This signal has been recalled by authority.' }}</span>
+      <small>{{ b.recalled_at.strftime('%d %b %Y %H:%M') if b.recalled_at else '' }}</small>
+    </div>
+  {% endif %}
+
+  <div class="phase4-overview-grid">
+    <div class="phase4-tile precedence-{{ (b.signal_precedence or b.precedence_action or 'ROUTINE')|lower }}">
+      <span>Precedence</span><b>{{ b.signal_precedence or b.precedence_action or 'ROUTINE' }}</b>
+      <small>Action: {{ b.precedence_action or 'ROUTINE' }} · Info: {{ b.precedence_info or '—' }}</small>
+    </div>
+    {% if not is_view_only_officer() %}
+    <div class="phase4-tile">
+      <span>ACK Discipline</span><b>{{ ack_dash.rate }}%</b>
+      <small>{{ ack_dash.acked }}/{{ ack_dash.total }} acknowledged{% if ack_dash.overdue %} · OVERDUE{% endif %}</small>
+    </div>
+    <div class="phase4-tile">
+      <span>ACK Deadline</span><b>{{ b.ack_deadline_at.strftime('%H:%MA') if b.ack_deadline_at else '—' }}</b>
+      <small>{{ b.ack_deadline_at.strftime('%d %b %Y') if b.ack_deadline_at else 'No mandatory deadline set' }}</small>
+    </div>
+    {% endif %}
+    <div class="phase4-tile">
+      <span>Routing Chain</span><b>{{ 'Defined' if b.routing_chain_text else 'Standard' }}</b>
+      <small>{{ b.routing_chain_text or 'System routing based on selected ACTION/INFO recipients' }}</small>
+    </div>
+  </div>
+
+  <div class="phase4-timeline">
+    {% for item in timeline %}
+      <div class="phase4-step {{ item.status }}"><i></i><b>{{ item.label }}</b><span>{{ item.at.strftime('%d %b %Y %H:%M') if item.at else '' }}</span>{% if item.actor %}<small>{{ item.actor }}</small>{% endif %}</div>
+    {% endfor %}
+  </div>
+
+  <div class="signal-sheet">
+    <div class="signal-title">NAF MESSAGE FORM</div>
+
+    <table class="signal-table">
+      <tr>
+        <td class="label-cell" rowspan="2">DRAFTER'S NAME IN BLOCK LETTERS</td>
+        <td class="value-cell" rowspan="2">{{ (b.drafter_name or '—')|upper }}{% if b.drafter_rank %} ({{ b.drafter_rank|upper }}){% endif %}</td>
+        <td class="label-cell">PRECEDENCE ACTION</td>
+        <td class="value-cell">{{ b.precedence_action or 'ROUTINE' }}</td>
+      </tr>
+      <tr>
+        <td class="label-cell">PRECEDENCE INFO</td>
+        <td class="value-cell">{{ b.precedence_info or '—' }}</td>
+      </tr>
+      <tr>
+        <td class="label-cell">FROM</td>
+        <td class="value-cell">{{ b.msg_from or '—' }}</td>
+        <td class="label-cell">FROM UNIT</td>
+        <td class="value-cell">{{ from_unit_text or '—' }}</td>
+      </tr>
+      <tr>
+        <td class="label-cell">TO</td>
+        <td class="value-cell">{{ b.msg_to or '—' }}</td>
+        <td class="label-cell">BRANCH OFFICE</td>
+        <td class="value-cell">{{ b.branch_office or '—' }}</td>
+      </tr>
+      <tr>
+        <td class="label-cell">ACTION UNITS / RECIPIENTS</td>
+        <td class="value-cell multiline">{% for line in action_lines %}<div>{{ line }}</div>{% else %}—{% endfor %}</td>
+        <td class="label-cell">INFO UNITS / RECIPIENTS</td>
+        <td class="value-cell multiline">{% for line in info_lines %}<div>{{ line }}</div>{% else %}—{% endfor %}</td>
+      </tr>
+      <tr>
+        <td class="label-cell">TELEPHONE NUMBER</td>
+        <td class="value-cell">{{ b.telephone or '—' }}</td>
+        <td class="label-cell">DATE TIME GROUP MONTH</td>
+        <td class="value-cell">{{ b.dtg or '—' }}</td>
+      </tr>
+      <tr>
+        <td class="label-cell">RELEASING OFFICER'S SIGNATURE AND RANK</td>
+        <td class="value-cell">{{ b.releasing_signature_rank or '—' }}</td>
+        <td class="label-cell">NAME OF RELEASING OFFICER</td>
+        <td class="value-cell">{{ b.releasing_officer_name or '—' }}</td>
+      </tr>
+      <tr>
+        <td class="label-cell">SECURITY CLASSIFICATION</td>
+        <td class="value-cell">{{ b.security_classification or 'RESTRICTED' }}</td>
+        <td class="label-cell">DIG SERIAL NO / ORIGINATOR'S NUMBER</td>
+        <td class="value-cell">{{ b.originator_number or '—' }}</td>
+      </tr>
+      <tr>
+        <td class="label-cell">SIGNAL PRECEDENCE</td>
+        <td class="value-cell">{{ b.signal_precedence or b.precedence_action or 'ROUTINE' }}</td>
+        <td class="label-cell">ROUTING CHAIN</td>
+        <td class="value-cell">{{ b.routing_chain_text or 'System routed' }}</td>
+      </tr>
+      <tr>
+        <td class="label-cell">DIGITAL SIGNATURE</td>
+        <td class="value-cell mono">{{ signature_meta.fingerprint or 'Pending' }}</td>
+        <td class="label-cell">SIGNATURE STATUS</td>
+        <td class="value-cell">{{ 'Verified' if signature_valid else ('Signed' if signature_meta.is_signed else 'Awaiting digital release signature') }} · {{ signature_meta.signed_at_text }}</td>
+      </tr>
+      <tr>
+        <td class="label-cell">RELEASE AUTHORITY</td>
+        <td class="value-cell" colspan="3">{{ signature_meta.signer_name }}{% if signature_meta.signer_rank and signature_meta.signer_rank != '—' %} · {{ signature_meta.signer_rank }}{% endif %} · Fingerprint: <span class="mono">{{ signature_meta.fingerprint or 'Pending' }}</span></td>
+      </tr>
+      <tr>
+        <td class="label-cell">MESSAGE INSTRUCTION</td>
+        <td class="value-cell" colspan="3">{{ b.title }}</td>
+      </tr>
+      <tr>
+        <td class="label-cell">TEXT</td>
+        <td class="text-cell rich-text" colspan="3">{{ body_text|safe }}</td>
+      </tr>
+      <tr>
+        <td class="label-cell">INTERNAL DISTRIBUTION</td>
+        <td class="value-cell">{{ form_ctx.rows[0].internal_distribution }}</td>
+        <td class="label-cell">FILE NUMBER OR REFERENCE</td>
+        <td class="value-cell">{{ form_ctx.rows[0].file_reference }}</td>
+      </tr>
+      <tr>
+        <td class="label-cell">CLASSIFIED MESSAGE REFERENCE</td>
+        <td class="value-cell">{% if form_ctx.rows[0].refers_classified_message %}Refers to a classified message{% else %}Does not refer to a classified message{% endif %}</td>
+        <td class="label-cell">COMMS / SYSTEM / TIME</td>
+        <td class="value-cell multiline">
+          <div>Comms/Gen Serial No: {{ form_ctx.rows[0].comms_gen_serial_no }}</div>
+          <div>Sender-Receiver OP: {{ form_ctx.rows[0].sender_receiver_op }}</div>
+          <div>System: {{ form_ctx.rows[0].transmission_system }}</div>
+          <div>Time-In/Out: {{ form_ctx.rows[0].time_in_out }}</div>
+        </td>
+      </tr>
+    </table>
+
+    {% if attachments and attachments|length %}
+    <div class="signal-attachments">
+      <div class="attach-head">ATTACHMENTS</div>
+      <div class="row" style="gap:8px; flex-wrap:wrap;">
+        {% for a in attachments %}
+          {% if b.status == 'RECALLED' or b.recalled_at %}
+            <span class="pill recalled-pill">📎 {{ a.original_filename }} — DOWNLOAD DISABLED</span>
+          {% else %}
+            <a class="pill" href="{{ url_for('msg.download_broadcast_attachment', broadcast_id=b.id, attachment_id=a.id) }}">📎 {{ a.original_filename }}</a>
+          {% endif %}
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+
+{% if unit_workflow and unit_workflow.is_unit_workflow and b.status not in ["RELEASED", "ARCHIVED", "RECALLED"] %}
+<div class="card hud unit-workflow-actions" style="max-width:980px; margin-top:16px;">
+  <div class="unit-action-head">
+    <div>
+      <div style="font-weight:900;">Unit routing actions</div>
+      <small class="muted">AO reviews: return, sign personally, or forward to selected signatory. Commander approval is still mandatory.</small>
+    </div>
+    <span class="pill">{{ unit_workflow.label }}</span>
+  </div>
+
+  {% if can_act_as_unit_ao and b.status in ["FORWARDED_TO_AO", "RETURNED_BY_AO", "APPROVED_BY_AO"] %}
+    <div class="unit-action-row">
+      <form method="post" action="{{ url_for('msg.broadcast_unit_workflow', broadcast_id=b.id) }}" class="unit-action-form">{{ csrf_field() }}
+        <input type="hidden" name="unit_workflow_action" value="ao_sign_commander">
+        <button class="btn btn-primary" type="submit">AO Sign/Endorse → Commander</button>
+      </form>
+      <form method="post" action="{{ url_for('msg.broadcast_unit_workflow', broadcast_id=b.id) }}" class="unit-action-form unit-forward-signatory">{{ csrf_field() }}
+        <input type="hidden" name="unit_workflow_action" value="ao_forward_signatory">
+        <select name="signatory_id" required>
+          <option value="">Select signatory officer</option>
+          {% for s in signatory_options %}<option value="{{ s.id }}">{{ s.rank or '' }} {{ s.full_name }}</option>{% endfor %}
+        </select>
+        <button class="btn btn-ghost" type="submit">AO Approve → Selected Signatory</button>
+      </form>
+      <form method="post" action="{{ url_for('msg.broadcast_unit_workflow', broadcast_id=b.id) }}" class="unit-action-form unit-return-form">{{ csrf_field() }}
+        <input type="hidden" name="unit_workflow_action" value="ao_return">
+        <input name="reason" placeholder="Reason for return" required>
+        <button class="btn btn-danger" type="submit">Return to Drafter</button>
+      </form>
+    </div>
+  {% endif %}
+
+  {% if can_act_as_unit_signatory and b.status == "FORWARDED_TO_SIGNATORY" %}
+    <div class="unit-action-row">
+      <form method="post" action="{{ url_for('msg.broadcast_unit_workflow', broadcast_id=b.id) }}" class="unit-action-form">{{ csrf_field() }}
+        <input type="hidden" name="unit_workflow_action" value="signatory_signed">
+        <button class="btn btn-primary" type="submit">Sign/Endorse → Commander</button>
+      </form>
+      <form method="post" action="{{ url_for('msg.broadcast_unit_workflow', broadcast_id=b.id) }}" class="unit-action-form unit-return-form">{{ csrf_field() }}
+        <input type="hidden" name="unit_workflow_action" value="signatory_return">
+        <input name="reason" placeholder="Reason for return" required>
+        <button class="btn btn-danger" type="submit">Return to AO / Chief Clerk</button>
+      </form>
+    </div>
+  {% endif %}
+
+  {% if can_act_as_unit_commander and b.status == "PENDING_COMMANDER_APPROVAL" %}
+    <div class="unit-action-row">
+      <form method="post" action="{{ url_for('msg.broadcast_unit_workflow', broadcast_id=b.id) }}" class="unit-action-form">{{ csrf_field() }}
+        <input type="hidden" name="unit_workflow_action" value="commander_approve">
+        <button class="btn btn-primary" type="submit">Commander Approve</button>
+      </form>
+      <form method="post" action="{{ url_for('msg.broadcast_unit_workflow', broadcast_id=b.id) }}" class="unit-action-form unit-return-form">{{ csrf_field() }}
+        <input type="hidden" name="unit_workflow_action" value="commander_return">
+        <input name="reason" placeholder="Reason for return" required>
+        <button class="btn btn-danger" type="submit">Return to Chief Clerk</button>
+      </form>
+    </div>
+  {% endif %}
+</div>
+{% endif %}
+
+{% if can_manage_workflow and b.status in ["DRAFT", "RECALLED", "RETURNED_BY_AO", "RETURNED_BY_COMMANDER"] %}
+<div class="card hud phase4-controls" style="max-width:980px; margin-top:16px;">
+  <div>
+    <div style="font-weight:800;">Editable signal control</div>
+    <small class="muted">{% if b.status == 'RECALLED' or b.recalled_at %}This recalled signal can be corrected and submitted again for fresh sign-and-release.{% else %}This draft can be edited before release authority validation.{% endif %}</small>
+  </div>
+  <a class="btn btn-primary" href="{{ url_for('msg.broadcast_edit', broadcast_id=b.id) }}">{% if b.corrected_from %}Edit Correction Signal{% elif b.status == 'RECALLED' or b.recalled_at %}Edit Recalled Signal{% else %}Edit Draft{% endif %}</a>
+</div>
+{% endif %}
+
+{% if can_manage_workflow and b.status in ["SUBMITTED", "APPROVED", "RELEASED"] and not (b.status == "RECALLED" or b.recalled_at) %}
+<div class="card hud phase4-controls" style="max-width:980px; margin-top:16px;">
+  <div>
+    <div style="font-weight:800;">Signal recall / correction control</div>
+    <small class="muted">Recall makes this same signal editable. Correction creates a separate editable amendment linked to this signal.</small>
+  </div>
+  <form method="post" action="{{ url_for('msg.broadcast_recall', broadcast_id=b.id) }}" class="phase4-inline-form">{{ csrf_field() }}
+    <input name="reason" placeholder="Recall reason" value="Operational correction required">
+    <button class="btn btn-ghost" type="submit">Recall & Edit Signal</button>
+  </form>
+  <form method="post" action="{{ url_for('msg.broadcast_correct', broadcast_id=b.id) }}">{{ csrf_field() }}
+    <button class="btn btn-primary" type="submit">Create Editable Correction Signal</button>
+  </form>
+</div>
+{% endif %}
+
+{% if b.corrected_from %}
+<div class="card hud phase4-linked">Correction to: <a href="{{ url_for('msg.broadcast_detail', broadcast_id=b.corrected_from.id) }}">{{ b.corrected_from.originator_number or b.corrected_from.title }}</a></div>
+{% endif %}
+{% if b.superseded_by %}
+<div class="card hud phase4-linked">Superseded by: <a href="{{ url_for('msg.broadcast_detail', broadcast_id=b.superseded_by.id) }}">{{ b.superseded_by.originator_number or b.superseded_by.title }}</a></div>
+{% endif %}
+
+{% if can_sign and b.status in ["SUBMITTED", "APPROVED", "APPROVED_BY_COMMANDER", "RELEASED"] and not b.digital_signature and not (b.status == "RECALLED" or b.recalled_at) %}
+<div class="card hud release-signature-card" style="max-width:980px; margin-top:16px; border:1px solid rgba(72,245,164,.28);">
+  <div class="release-signature-head">
+    <div>
+      <div style="font-weight:900; font-size:18px;">Sign & Release Signal</div>
+      <p class="muted" style="margin:4px 0 0;">Draw inside the white signature box below using mouse, touchscreen, or stylus. This visible signature is locked into the backend digital fingerprint.</p>
+    </div>
+    <span class="pill pill-green">Signature required</span>
+  </div>
+
+  <form method="post" action="{{ url_for('msg.broadcast_sign', broadcast_id=b.id) }}" class="release-signature-form" id="releaseSignatureForm" data-signal-processing="true">{{ csrf_field() }}
+    <div class="signature-pad-wrap">
+      <div class="signature-pad-toolbar">
+        <strong>✍️ Draw release signature here</strong>
+        <button class="btn btn-ghost" type="button" id="clearReleaseSignature">Clear signature</button>
+      </div>
+      <div class="signature-canvas-shell">
+        <canvas id="releaseSignaturePad" class="signature-pad" width="900" height="240" aria-label="Draw release signature here"></canvas>
+        <div class="signature-pad-hint" id="signaturePadHint">SIGN HERE</div>
+      </div>
+      <input type="hidden" name="signature_pad_data" id="signaturePadData" required>
+      <small class="muted">If you do not see ink while signing, clear the pad and try again. The pad works with mouse drag, finger touch, and stylus pen.</small>
+    </div>
+
+    <div class="grid-2 release-confirm-grid">
+      <label>Full account name
+        <input type="text" name="signer_name" value="{{ current_user.full_name }}" required autocomplete="name">
+      </label>
+      <label>Password confirmation
+        <input type="password" name="password" required autocomplete="current-password">
+      </label>
+    </div>
+
+    <button class="btn btn-primary" type="submit" style="width:100%; justify-content:center;">Sign & Release Signal</button>
+  </form>
+</div>
+{% endif %}
+{% if not is_view_only_officer() and b.requires_ack and b.status == "RELEASED" and not (b.status == "RECALLED" or b.recalled_at) %}
+<div class="card hud" style="max-width:860px;">
+  <div class="row" style="justify-content:space-between;">
+    <div>
+      <div style="font-weight:700;">Acknowledgement</div>
+      
+    </div>
+    <div>
+      {% if ack and ack.acked_at %}
+        <span class="pill pill-green">Acknowledged</span>
+      {% else %}
+        <form method="post" action="{{ url_for('msg.broadcast_ack', broadcast_id=b.id) }}">{{ csrf_field() }}
+          <button class="btn btn-primary" type="submit">ACKNOWLEDGE SIGNAL</button>
+        </form>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endif %}
+
+
+
+{% if receipts and (current_user.role in ['ADMIN','SUPER_ADMIN'] or current_user.id == b.issuer_id) %}
+<div class="card hud ack-tracking-card" style="max-width:1100px; margin-top:16px;">
+  <div class="row-between" style="gap:12px; align-items:flex-start;">
+    <div>
+      <h2 style="margin:0;">Signal Receipt & Acknowledgement Tracking</h2>
+      
+    </div>
+    <div class="ack-summary-grid">
+      <span class="pill">Not seen: {{ stats.not_seen }}</span>
+      <span class="pill">Received: {{ stats.received }}</span>
+      <span class="pill">Read: {{ stats.read }}</span>
+      <span class="pill pill-green">ACK: {{ ack_dash.acked }}/{{ ack_dash.total }}</span>
+    </div>
+  </div>
+  <div class="table-wrap" style="margin-top:12px;">
+    <table class="data-table ack-table">
+      <thead><tr><th>Officer</th><th>Unit</th><th>Received</th><th>Opened</th><th>Acknowledged</th></tr></thead>
+      <tbody>
+        {% for rr in receipts %}
+          {% set aa = ack_by_user.get(rr.user_id) %}
+          <tr>
+            <td><b>{{ rr.user.rank or '' }} {{ rr.user.full_name }}</b><div class="cell-sub">{{ rr.user.service_number }} · {{ rr.user.role }}</div></td>
+            <td>{{ rr.user.unit.code if rr.user.unit else '—' }}</td>
+            <td>{{ rr.received_at.strftime('%d %b %Y %H:%M') if rr.received_at else 'Not received' }}</td>
+            <td>{{ rr.read_at.strftime('%d %b %Y %H:%M') if rr.read_at else 'Not opened' }}</td>
+            <td>{% if aa and aa.acked_at %}<span class="pill pill-green">{{ aa.acked_at.strftime('%d %b %Y %H:%M') }}</span>{% else %}<span class="pill">Pending</span>{% endif %}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+{% if not is_view_only_officer() and b.requires_ack and b.status == "RELEASED" and not (b.status == "RECALLED" or b.recalled_at) and not (ack and ack.acked_at) %}<div class="mobile-ack-bar"><form method="post" action="{{ url_for('msg.broadcast_ack', broadcast_id=b.id) }}">{{ csrf_field() }}<button class="btn btn-primary" type="submit" style="width:100%;">ACKNOWLEDGE SIGNAL</button></form></div>{% endif %}
+
+<style>
+.unit-workflow-panel{margin-top:16px}.unit-workflow-grid{margin-bottom:0}.unit-return-note{margin-top:12px}.unit-workflow-actions{border:1px solid rgba(59,130,246,.22)}.unit-action-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;margin-bottom:12px}.unit-action-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;align-items:end}.unit-action-form{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.unit-action-form select,.unit-action-form input{flex:1;min-width:160px;padding:10px 12px;border-radius:12px;border:1px solid var(--field-border, rgba(148,163,184,.34));background:var(--field-bg, rgba(255,255,255,.05));color:var(--text, inherit)}.unit-action-form .btn{white-space:nowrap}@media (max-width:720px){.unit-action-head{display:block}.unit-action-form{display:grid;grid-template-columns:1fr}.unit-action-form .btn{width:100%;justify-content:center}}
+.signal-sheet{min-width:920px; background:#fff; color:#000; padding:18px; border-radius:12px;}
+.signal-title{text-align:center; font-weight:800; letter-spacing:.08em; margin-bottom:12px;}
+.signal-table{width:100%; border-collapse:collapse; table-layout:fixed;}
+.signal-table td{border:1px solid #000; padding:8px; vertical-align:top; font-size:13px;}
+.signal-table .label-cell{font-weight:700; width:20%; text-transform:uppercase; font-size:12px;}
+.signal-table .value-cell{width:30%;}
+.signal-table .text-cell{min-height:280px;}
+.signal-table .multiline div{margin-bottom:4px;}
+.signal-attachments{margin-top:12px; border:1px solid #000; padding:10px;}
+.attach-head{font-weight:700; margin-bottom:8px;}
+.rich-text p{margin:0 0 10px 0;}
+.rich-text table{width:100%; border-collapse:collapse; margin-top:10px;}
+.rich-text th,.rich-text td{border:1px solid #000; padding:6px;}
+.mono{font-family:Consolas, Menlo, Monaco, monospace;}
+.sign-form{display:grid; grid-template-columns:2fr 1.4fr auto; gap:10px; align-items:end;}
+.sign-form label{display:flex; flex-direction:column; gap:6px; font-size:13px;}
+.sign-form input{padding:10px 12px; border-radius:10px; border:1px solid rgba(255,255,255,.12); background:rgba(255,255,255,.04); color:inherit;}
+.mobile-ack-bar{display:none;}
+.recalled-pill{border-color:rgba(255,82,99,.55)!important;background:rgba(255,82,99,.12)!important;color:#ff6d7a!important;font-weight:900;}
+.phase4-overview-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:14px}.phase4-tile{border:1px solid rgba(255,255,255,.1);border-radius:18px;padding:14px;background:rgba(255,255,255,.04);box-shadow:0 18px 50px rgba(0,0,0,.18)}.phase4-tile span{display:block;color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.08em}.phase4-tile b{display:block;font-size:24px;margin-top:5px}.phase4-tile small{display:block;color:var(--muted);margin-top:4px;line-height:1.35}.precedence-flash{border-color:rgba(255,75,92,.48);box-shadow:0 0 28px rgba(255,75,92,.18)}.precedence-immediate{border-color:rgba(255,169,74,.42)}.precedence-priority{border-color:rgba(255,209,106,.42)}.precedence-routine{border-color:rgba(72,245,164,.28)}.phase4-timeline{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:14px}.phase4-step{position:relative;border:1px solid rgba(255,255,255,.1);border-radius:16px;padding:12px;background:rgba(0,0,0,.16)}.phase4-step i{display:block;width:10px;height:10px;border-radius:50%;background:#38e98d;box-shadow:0 0 18px rgba(56,233,141,.6);margin-bottom:7px}.phase4-step.warn i{background:#ffcc66}.phase4-step b,.phase4-step span,.phase4-step small{display:block}.phase4-step span,.phase4-step small{color:var(--muted);font-size:12px;margin-top:3px}.phase4-recall-banner{display:flex;gap:12px;align-items:center;justify-content:space-between;border:1px solid rgba(255,82,99,.5);background:rgba(255,82,99,.12);border-radius:18px;padding:13px 14px;margin-bottom:14px}.phase4-recall-banner b{color:#ff6d7a}.phase4-recall-banner span{flex:1}.phase4-controls{display:grid;grid-template-columns:1fr 1.2fr auto;gap:12px;align-items:end}.phase4-inline-form{display:grid;grid-template-columns:1fr auto;gap:8px}.phase4-inline-form input{padding:10px 12px;border-radius:12px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.04);color:inherit}.phase4-linked{max-width:980px;margin-top:12px;}
+@media (max-width: 860px){.signal-actions{flex-wrap:wrap;}.signal-sheet{min-width:0; padding:10px;}.signal-table td{font-size:12px; padding:6px;}.mobile-ack-bar{display:block; position:sticky; bottom:12px; z-index:15; margin-top:14px;}.phase4-overview-grid{grid-template-columns:1fr}.phase4-controls{grid-template-columns:1fr}.phase4-inline-form{grid-template-columns:1fr}.phase4-recall-banner{display:block}.phase4-recall-banner span,.phase4-recall-banner small{display:block;margin-top:6px}}
+</style>
+
+<style>
+.release-signature-card{position:relative;overflow:hidden;}
+.release-signature-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:12px;}
+.release-signature-form{display:block;}
+.release-signature-form label{display:flex;flex-direction:column;gap:6px;font-size:13px;}
+.release-signature-form input{padding:11px 12px;border-radius:12px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.05);color:inherit;}
+.release-signature-card .grid-2{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px;}
+.release-confirm-grid{margin:12px 0;}
+.signature-pad-wrap{margin:12px 0;padding:14px;border:1px solid rgba(72,245,164,.25);border-radius:18px;background:rgba(15,23,42,.54);}
+.signature-pad-toolbar{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px;}
+.signature-canvas-shell{position:relative;border:2px solid rgba(72,245,164,.55);border-radius:16px;background:#fff;box-shadow:inset 0 0 0 1px rgba(15,23,42,.08),0 14px 36px rgba(0,0,0,.22);overflow:hidden;}
+.signature-pad{display:block;width:100%;height:240px;background:#fff;touch-action:none;cursor:crosshair;}
+.signature-pad-hint{position:absolute;left:18px;bottom:14px;color:rgba(15,23,42,.24);font-weight:900;letter-spacing:.18em;pointer-events:none;user-select:none;}
+.signature-canvas-shell.is-signed .signature-pad-hint{display:none;}
+@media (max-width:640px){.release-signature-head{display:block}.signature-pad{height:180px}.signature-pad-toolbar{align-items:flex-start;flex-direction:column}.signature-pad-toolbar .btn{width:100%;}}
+</style>
+<script>
+(function(){
+  const canvas = document.getElementById('releaseSignaturePad');
+  const input = document.getElementById('signaturePadData');
+  const form = document.getElementById('releaseSignatureForm');
+  const clearBtn = document.getElementById('clearReleaseSignature');
+  const shell = canvas ? canvas.closest('.signature-canvas-shell') : null;
+  if(!canvas || !input || !form) return;
+  const ctx = canvas.getContext('2d');
+  let drawing = false;
+  let dirty = false;
+  let last = null;
+
+  function setInk(){
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = '#0f172a';
+  }
+  function resizeCanvas(){
+    const ratio = Math.max(window.devicePixelRatio || 1, 1);
+    const rect = canvas.getBoundingClientRect();
+    const saved = dirty ? canvas.toDataURL('image/png') : null;
+    canvas.width = Math.max(1, Math.round(rect.width * ratio));
+    canvas.height = Math.max(1, Math.round(rect.height * ratio));
+    ctx.setTransform(ratio,0,0,ratio,0,0);
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(0,0,rect.width,rect.height);
+    setInk();
+    if(saved){
+      const img = new Image();
+      img.onload = () => { ctx.drawImage(img,0,0,rect.width,rect.height); input.value = canvas.toDataURL('image/png'); };
+      img.src = saved;
+    }
+  }
+  function eventPoint(evt){
+    const e = evt.touches && evt.touches.length ? evt.touches[0] : evt;
+    const rect = canvas.getBoundingClientRect();
+    return {x: e.clientX - rect.left, y: e.clientY - rect.top};
+  }
+  function markSigned(){
+    dirty = true;
+    shell && shell.classList.add('is-signed');
+    input.value = canvas.toDataURL('image/png');
+  }
+  function clearCanvas(){
+    const rect = canvas.getBoundingClientRect();
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(0,0,rect.width,rect.height);
+    setInk();
+    dirty = false;
+    input.value = '';
+    shell && shell.classList.remove('is-signed');
+  }
+  function start(evt){
+    evt.preventDefault();
+    drawing = true;
+    last = eventPoint(evt);
+    setInk();
+    ctx.beginPath();
+    ctx.moveTo(last.x,last.y);
+    ctx.lineTo(last.x + 0.1,last.y + 0.1);
+    ctx.stroke();
+    markSigned();
+    if(evt.pointerId !== undefined && canvas.setPointerCapture){ canvas.setPointerCapture(evt.pointerId); }
+  }
+  function move(evt){
+    if(!drawing || !last) return;
+    evt.preventDefault();
+    const p = eventPoint(evt);
+    ctx.beginPath();
+    ctx.moveTo(last.x,last.y);
+    ctx.lineTo(p.x,p.y);
+    ctx.stroke();
+    last = p;
+    markSigned();
+  }
+  function end(evt){
+    if(!drawing) return;
+    evt && evt.preventDefault && evt.preventDefault();
+    drawing = false;
+    last = null;
+    if(dirty) input.value = canvas.toDataURL('image/png');
+  }
+  clearBtn && clearBtn.addEventListener('click', clearCanvas);
+  if(window.PointerEvent){
+    canvas.addEventListener('pointerdown', start);
+    canvas.addEventListener('pointermove', move);
+    canvas.addEventListener('pointerup', end);
+    canvas.addEventListener('pointercancel', end);
+    canvas.addEventListener('pointerleave', end);
+  } else {
+    canvas.addEventListener('mousedown', start);
+    canvas.addEventListener('mousemove', move);
+    window.addEventListener('mouseup', end);
+    canvas.addEventListener('touchstart', start, {passive:false});
+    canvas.addEventListener('touchmove', move, {passive:false});
+    canvas.addEventListener('touchend', end, {passive:false});
+    canvas.addEventListener('touchcancel', end, {passive:false});
+  }
+  form.addEventListener('submit', function(e){
+    if(!dirty || !input.value){
+      e.preventDefault();
+      alert('Please draw inside the white signature box before signing and releasing the signal.');
+      return false;
+    }
+  });
+  window.addEventListener('resize', resizeCanvas);
+  setTimeout(resizeCanvas, 50);
+})();
+</script>
+{% endblock %}

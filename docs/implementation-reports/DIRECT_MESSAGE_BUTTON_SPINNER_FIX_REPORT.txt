@@ -1,0 +1,18 @@
+DIRECT MESSAGE SEND BUTTON SPINNER FIX
+
+Issue:
+- Direct Messages are sent with AJAX/fetch, so the page does not reload.
+- Global submit micro-interaction scripts were still adding loading/spinner classes to the DM send button.
+- Since the DM request completes in-page, the global spinner could remain until manual refresh.
+
+Fixes applied:
+1. Marked Direct Message composer form with data-no-loader and data-no-global-submit.
+2. Updated global base submit handler to skip those forms.
+3. Updated ux_micro_interactions.js to skip those forms too.
+4. Changed Direct Message submit handler to stopImmediatePropagation, preventing later global submit handlers from altering the button.
+5. Added a robust resetDirectSendButton() function that removes loading classes, aria-busy, disabled state, form submitting flags, and restores the original label after success or failure.
+
+Expected result:
+- Message still appears instantly.
+- Send button changes briefly to Sending… only during the AJAX call.
+- After success or failure, button returns to Send Secure without needing page refresh.

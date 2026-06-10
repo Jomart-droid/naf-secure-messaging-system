@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="admin-console">
+  <div class="admin-hero-panel">
+    <div class="admin-eyebrow"><span class="pulse-dot"></span> MISSION ROOM CONTROL</div>
+    <h1>Channel Administration</h1>
+    
+  </div>
+  <div class="admin-command-grid">
+    <section class="admin-panel">
+      <div class="admin-panel-head"><div><h2>Create Channel</h2></div></div>
+      <form method="post" class="admin-form-grid single">{{ csrf_field() }}
+        <label><span>Channel name</span><input name="name" required placeholder="e.g., Operation Falcon Channel"></label>
+        <label><span>Description</span><input name="description" placeholder="Description"></label>
+        <div class="admin-form-grid">
+          <label><span>Scope</span><select name="scope"><option value="UNIT">UNIT</option><option value="MISSION">MISSION</option></select></label>
+          <label><span>Classification</span><select name="clearance_level"><option>RESTRICTED</option><option>CONFIDENTIAL</option><option>SECRET</option><option>TOP SECRET</option></select></label>
+        </div>
+        <label><span>Units in Channel</span><select name="unit_ids" multiple size="7">{% for u in units %}<option value="{{ u.id }}">{{ u.code }} · {{ u.name }}</option>{% endfor %}</select></label>
+        <label><span>Individual Officers</span><select name="officer_ids" multiple size="7">{% for u in users %}<option value="{{ u.id }}">{{ u.rank or '' }} {{ u.full_name }} · {{ u.service_number }}</option>{% endfor %}</select></label>
+        <button class="btn" type="submit">Create Channel</button>
+      </form>
+    </section>
+    <section class="admin-panel">
+      <div class="admin-table-toolbar"><div><h2>Active Channels</h2></div><input id="channelFilter" class="admin-search" type="search" placeholder="Search channels…"></div>
+      <div class="admin-card-list" id="channelGrid">
+        {% for c in channels %}
+        <article class="admin-record-card">
+          <div class="record-top"><div><div class="cell-title">{{ c.name }}</div><div class="cell-sub">Created {{ c.created_at.strftime('%d %b %Y %H:%M') if c.created_at else '' }}</div></div><span class="badge-soft badge-blue">{{ c.scope }}</span><span class="badge-soft">{{ c.classification_level or 'RESTRICTED' }}</span></div>
+          <div class="record-meta"><span class="badge-soft">{{ (c.units|map(attribute='code')|list|join(', ')) or (c.unit.code if c.unit else 'Mission-wide') }}</span></div>
+          <div class="record-actions"><a class="btn btn-sm" href="{{ url_for('admin.edit_channel', channel_id=c.id) }}">Edit</a><form method="post" action="{{ url_for('admin.delete_channel', channel_id=c.id) }}" onsubmit="return confirm('Delete channel?');">{{ csrf_field() }}<button class="btn btn-sm danger" type="submit">Delete</button></form></div>
+        </article>
+        {% else %}<div class="muted">No channels created yet.</div>{% endfor %}
+      </div>
+    </section>
+  </div>
+</section>
+<script>(function(){const i=document.getElementById('channelFilter'),g=document.getElementById('channelGrid');if(!i||!g)return;i.addEventListener('input',()=>{const q=i.value.toLowerCase();g.querySelectorAll('.admin-record-card').forEach(c=>c.style.display=!q||c.innerText.toLowerCase().includes(q)?'':'none')});})();</script>
+{% endblock %}

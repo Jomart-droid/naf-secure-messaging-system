@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Channels</h1>
+    
+  </div>
+  <div class="toolbar" style="min-width:320px;">
+    <div class="input-wrap" style="flex:1;">
+      <span class="input-ico">⌕</span>
+      <input class="input icon-left" placeholder="Search channels…" data-filter="#channelsList">
+    </div>
+    <a class="btn secondary" href="{{ url_for('main.search') }}">Advanced search</a>
+  </div>
+</div>
+
+<div class="card hud">
+  <div class="chipbar" data-chip-group data-chip-target="#channelsList" style="margin-bottom:12px;">
+    <span class="chip active" data-chip data-chip-value="all"><span class="dot"></span>All</span>
+    <span class="chip" data-chip data-chip-value="unit"><span class="dot"></span>Unit</span>
+    <span class="chip" data-chip data-chip-value="global"><span class="dot"></span>Global</span>
+  </div>
+
+  <ul id="channelsList" class="list">
+    {% for c in channels %}
+      <li data-filter-item data-chip-item="{{ (c.scope or 'unit')|lower }}">
+        <div class="row">
+          <div>
+            <a href="{{ url_for('msg.channel_view', channel_id=c.id) }}"><b>{{ c.name }}</b></a>
+            <div class="meta">
+              <span class="pill">{{ c.scope }}</span>
+              <span class="muted">· {{ (c.units|map(attribute="code")|list|join(", ")) or (c.unit.code if c.unit else "") }}</span><span class="pill">{{ c.classification_level or "RESTRICTED" }}</span>
+            </div>
+          </div>
+          <div class="muted mono" style="font-size:12px;">#{{ c.id }}</div>
+        </div>
+      </li>
+    {% else %}
+      <li class="empty" data-filter-item>
+        <div class="big">No channels found</div>
+        <div>No channels available.</div>
+      </li>
+    {% endfor %}
+  </ul>
+</div>
+{% endblock %}

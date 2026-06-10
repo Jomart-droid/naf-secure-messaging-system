@@ -1,0 +1,529 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="tactical-dm-shell" data-presence-user-id="{{ other.id }}">
+  <aside class="tactical-dm-side">
+    <a class="dm-back-link" href="{{ url_for('msg.direct_list') }}">← All Direct Messages</a>
+    <div class="dm-profile-card">
+      <div class="dm-profile-avatar">
+        {{ (other.full_name[:1] or 'U')|upper }}
+        <span class="presence-dot large offline" title="Offline"></span>
+      </div>
+      <h2>{{ other.full_name }}</h2>
+      <p>{{ other.service_number }}</p>
+      <div class="dm-profile-tags">
+        <span>{{ other.role }}</span>
+        <span>{{ other.rank or 'NAF PERSONNEL' }}</span>
+        <span>{{ other.unit.code if other.unit else 'NO UNIT' }}</span>
+      </div>
+    </div>
+
+    {% if current_user.role in ['ADMIN', 'SUPER_ADMIN'] %}
+    <div class="dm-security-panel">
+      <div class="dm-panel-title">Conversation Security</div>
+      <div class="dm-security-row"><span>Encryption</span><b>ACTIVE</b></div>
+      <div class="dm-security-row"><span>Audit Trail</span><b>ENABLED</b></div>
+      <div class="dm-security-row"><span>Realtime</span><b id="dmRealtimeState" data-presence-label>OFFLINE</b></div>
+      <div class="dm-security-row"><span>Attachments</span><b>{{ 'ALLOWED' if allow_attachments else 'DISABLED' }}</b></div>
+    </div>
+    {% endif %}
+
+    <div class="dm-quick-actions">
+      <button type="button" class="dm-chip" data-template="Acknowledged. Action will be taken accordingly.">ACK</button>
+      <button type="button" class="dm-chip" data-template="Kindly treat as urgent and revert with status update.">Urgent</button>
+      <button type="button" class="dm-chip" data-template="Please confirm receipt of this message.">Confirm Receipt</button>
+    </div>
+  </aside>
+
+  <main class="tactical-dm-main">
+    <header class="dm-chat-header">
+      <div>
+        <div class="eyebrow">SECURE ENCRYPTED CHANNEL</div>
+        <h1>{{ other.full_name }}</h1>
+        <p>{{ other.rank or other.role }} · {{ other.unit.name if other.unit else 'Unit not assigned' }}</p>
+      </div>
+      <div class="dm-header-status" id="dmHeaderPresence">
+        <span class="live-pulse amber"></span>
+        <span data-presence-label>OFFLINE</span>
+      </div>
+    </header>
+
+    <div class="dm-classification-strip">
+      <span>CLASSIFICATION: RESTRICTED</span>
+      <span>MONITORED BY NMS SECURITY CORE</span>
+      <span>DTG: <b id="dmClock">--</b></span>
+    </div>
+
+    <div id="chat" class="tactical-chat-feed">
+      {% for m in messages %}
+        <article class="tactical-msg {% if m.sender_id == current_user.id %}me{% endif %}" data-msg-id="{{ m.id }}">
+          <div class="msg-avatar">{{ (m.sender.full_name[:1] or 'U')|upper }}</div>
+          <div class="msg-packet">
+            <div class="msg-command-meta">
+              <strong>{{ m.sender.full_name }}</strong>
+              <span>{{ m.sender.role }}</span>
+              <time>{{ m.created_at.strftime('%d %b %Y · %H:%M') }}</time>
+            </div>
+            <div class="msg-text">{{ m.get_body() }}</div>
+            {% if allow_attachments and m.attachments.count() > 0 %}
+              <div class="tactical-attachments">
+                {% for a in m.attachments.all() %}
+                  {% set lower_name = a.original_filename|lower %}
+                  {% set is_audio = (a.mime_type and a.mime_type.startswith('audio/')) or lower_name.endswith('.webm') or lower_name.endswith('.ogg') or lower_name.endswith('.mp3') or lower_name.endswith('.wav') or lower_name.endswith('.m4a') or lower_name.endswith('.aac') %}
+                  <a class="tactical-attach-card {{ 'voice-note-card' if is_audio else '' }}" href="{{ url_for('msg.download_attachment', attachment_id=a.id) }}">
+                    <span>{{ '🎙️' if is_audio else '📎' }}</span>
+                    <b>{{ 'Voice message' if is_audio else a.original_filename }}</b>
+                    <small>{{ (a.size_bytes/1024)|round(0) }} KB · integrity tracked</small>
+                  </a>
+                  {% if is_audio %}
+                    <audio class="voice-note-player" controls preload="metadata" src="{{ url_for('msg.download_attachment', attachment_id=a.id) }}"></audio>
+                  {% endif %}
+                {% endfor %}
+              </div>
+            {% endif %}
+            <div class="msg-state-line">
+              <span>Encrypted</span>
+              {% if m.sender_id == current_user.id %}
+                {% set dm_status = 'read' if m.id in read_ids else ('delivered' if m.id in delivered_ids else 'sent') %}
+                <span class="dm-tick-state {{ dm_status }}" data-status-for="{{ m.id }}" title="{{ dm_status|title }}">
+                  <span class="dm-ticks" aria-hidden="true">{{ '✓✓' if dm_status in ['delivered','read'] else '✓' }}</span>
+                  <span class="dm-status-label">{{ dm_status|title }}</span>
+                </span>
+              {% else %}
+                <span>Received</span>
+              {% endif %}
+            </div>
+          </div>
+        </article>
+      {% endfor %}
+    </div>
+
+    <div id="typingIndicator" class="tactical-typing"></div>
+    <div id="readReceiptHint" class="tactical-receipt">Realtime enabled. Delivery and read states update automatically.</div>
+
+    <form class="tactical-composer" method="post" enctype="multipart/form-data" data-no-loader="true" data-no-global-submit="true" action="{{ url_for('msg.direct_view', user_id=other.id) }}">{{ csrf_field() }}
+      <div class="composer-topline">
+        <span>SECURE COMPOSER</span>
+        <span>Audit monitored</span>
+      </div>
+      <div class="composer-row">
+        <textarea name="body" id="composer" placeholder="Type secure operational message…" autocomplete="off" rows="2"></textarea>
+        <button type="button" class="emoji-button" id="emojiToggle" title="Insert emoji" aria-label="Insert emoji" aria-expanded="false">😊</button>
+        {% if allow_attachments %}
+          <button type="button" class="voice-button" id="voiceRecordBtn" title="Record voice message" aria-label="Record voice message">🎙️</button>
+          <input type="file" name="voice_message" id="voiceMessageFile" accept="audio/webm,audio/ogg,audio/mpeg,audio/wav,audio/mp4,audio/aac" hidden>
+          <label class="attach-button voice-upload-fallback" id="voiceUploadFallback" title="Upload an audio file if browser recording is blocked">
+            ⬆️
+            <input type="file" id="voiceUploadManual" accept="audio/webm,audio/ogg,audio/mpeg,audio/wav,audio/mp4,audio/aac" hidden>
+          </label>
+          <label class="attach-button" title="Attach files up to {{ max_attachment_mb }}MB each">
+            📎
+            <input type="file" name="attachments" multiple hidden>
+          </label>
+        {% endif %}
+        <button class="btn dm-send-btn" type="submit">Send Secure</button>
+      </div>
+      <div class="voice-record-status" id="voiceRecordStatus" hidden>Ready to record</div>
+      <div class="emoji-picker-panel" id="emojiPicker" aria-hidden="true">
+        <div class="emoji-picker-head">
+          <span>Quick Emoji</span>
+          <button type="button" class="emoji-close" id="emojiClose" aria-label="Close emoji picker">×</button>
+        </div>
+        <div class="emoji-grid" id="emojiGrid"></div>
+      </div>
+    </form>
+  </main>
+</section>
+
+<script>
+(function(){
+  const chat = document.getElementById('chat');
+  const otherId = {{ other.id }};
+  const me = parseInt(document.body.dataset.userId || '0');
+  const input = document.getElementById('composer');
+  const clock = document.getElementById('dmClock');
+
+  function pad(n){ return String(n).padStart(2,'0'); }
+  function tick(){
+    if(!clock) return;
+    const d = new Date();
+    clock.textContent = `${pad(d.getUTCDate())}${pad(d.getUTCHours())}${pad(d.getUTCMinutes())}Z`;
+  }
+  tick(); setInterval(tick, 30000);
+
+  function scrollToBottom(){ if(chat) chat.scrollTop = chat.scrollHeight; }
+  scrollToBottom();
+
+  function setMessageStatus(messageIds, status){
+    (messageIds || []).forEach(id => {
+      document.querySelectorAll('[data-status-for="'+id+'"]').forEach(el => {
+        el.classList.remove('sent','delivered','read');
+        el.classList.add(status);
+        el.title = status.charAt(0).toUpperCase() + status.slice(1);
+        const ticks = el.querySelector('.dm-ticks');
+        const label = el.querySelector('.dm-status-label');
+        if(ticks) ticks.textContent = (status === 'delivered' || status === 'read') ? '✓✓' : '✓';
+        if(label) label.textContent = status.charAt(0).toUpperCase() + status.slice(1);
+      });
+    });
+  }
+
+  function markVisibleInboundAsRead(){
+    if(!window.NAF_SOCKET || !chat) return;
+    const ids = Array.from(chat.querySelectorAll('.tactical-msg:not(.me)[data-msg-id]')).map(el => parseInt(el.dataset.msgId || '0')).filter(Boolean);
+    if(ids.length){ window.NAF_SOCKET.emit('direct_mark_read', {message_ids: ids, thread_user_id: otherId}); }
+  }
+  markVisibleInboundAsRead();
+
+  function renderMsg(msg){
+    const wrap = document.createElement('article');
+    wrap.className = 'tactical-msg' + (msg.sender_id === me ? ' me' : '');
+    wrap.dataset.msgId = msg.id;
+
+    const avatar = document.createElement('div');
+    avatar.className = 'msg-avatar';
+    avatar.textContent = (msg.sender_name || 'U').trim().charAt(0).toUpperCase();
+
+    const packet = document.createElement('div');
+    packet.className = 'msg-packet';
+
+    const meta = document.createElement('div');
+    meta.className = 'msg-command-meta';
+    const strong = document.createElement('strong'); strong.textContent = msg.sender_name || 'Unknown';
+    const role = document.createElement('span'); role.textContent = msg.sender_role || 'NAF';
+    const time = document.createElement('time'); time.textContent = new Date(msg.created_at).toLocaleString();
+    meta.append(strong, role, time);
+
+    const body = document.createElement('div');
+    body.className = 'msg-text';
+    body.textContent = msg.body || '';
+
+    if(Array.isArray(msg.attachments) && msg.attachments.length){
+      const attBox = document.createElement('div');
+      attBox.className = 'tactical-attachments';
+      msg.attachments.forEach(a => {
+        const isAudio = (a.mime_type || '').toLowerCase().startsWith('audio/') || /\.(webm|ogg|mp3|wav|m4a|aac)$/i.test(a.name || '');
+        const link = document.createElement('a');
+        link.className = 'tactical-attach-card' + (isAudio ? ' voice-note-card' : '');
+        link.href = a.url || '#';
+        link.innerHTML = '<span>' + (isAudio ? '🎙️' : '📎') + '</span><b>' + (isAudio ? 'Voice message' : (a.name || 'Attachment')) + '</b><small>' + Math.round((a.size_bytes || 0)/1024) + ' KB · integrity tracked</small>';
+        attBox.appendChild(link);
+        if(isAudio && a.url){
+          const audio = document.createElement('audio');
+          audio.className = 'voice-note-player';
+          audio.controls = true; audio.preload = 'metadata'; audio.src = a.url;
+          attBox.appendChild(audio);
+        }
+      });
+      packet.append(meta, body, attBox);
+    }
+
+    const state = document.createElement('div');
+    state.className = 'msg-state-line';
+    if(msg.sender_id === me){
+      const status = msg.status || 'sent';
+      const ticks = (status === 'delivered' || status === 'read') ? '✓✓' : '✓';
+      state.innerHTML = '<span>Encrypted</span><span class="dm-tick-state '+status+'" data-status-for="'+msg.id+'" title="'+status+'"><span class="dm-ticks" aria-hidden="true">'+ticks+'</span><span class="dm-status-label">'+status.charAt(0).toUpperCase()+status.slice(1)+'</span></span>';
+    } else {
+      state.innerHTML = '<span>Encrypted</span><span>Received</span>';
+    }
+
+    if(!packet.contains(meta)) packet.append(meta, body);
+    packet.appendChild(state);
+    wrap.append(avatar, packet);
+    return wrap;
+  }
+
+  function bindDirectMessageSocket(socket){
+    socket = socket || window.NAF_SOCKET;
+    if(!socket || socket.__nafDirectThreadBound) return;
+    socket.__nafDirectThreadBound = true;
+    socket.on('direct_message', (msg) => {
+      const isThisThread = (msg.sender_id === otherId && msg.recipient_id === me) || (msg.sender_id === me && msg.recipient_id === otherId);
+      if(!isThisThread) return;
+      const existing = document.querySelector('[data-msg-id="'+msg.id+'"]');
+      if(existing) return;
+      // If this is our just-sent message, replace any temporary optimistic bubble.
+      const temp = msg.sender_id === me ? chat.querySelector('[data-temp-msg="1"]') : null;
+      const node = renderMsg(msg);
+      if(temp) temp.replaceWith(node);
+      else chat.appendChild(node);
+      scrollToBottom();
+      if(msg.recipient_id === me){
+        socket.emit('direct_mark_delivered', {message_ids: [msg.id], thread_user_id: otherId});
+        if(!document.hidden){ socket.emit('direct_mark_read', {message_ids: [msg.id], thread_user_id: otherId}); }
+      }
+    });
+  }
+  bindDirectMessageSocket(window.NAF_SOCKET);
+  window.addEventListener('naf:socket-ready', (ev) => bindDirectMessageSocket(ev.detail && ev.detail.socket));
+
+  let typingTimer = null;
+  function setTyping(isTyping){ if(window.NAF_SOCKET) window.NAF_SOCKET.emit('direct_typing', {recipient_id: otherId, is_typing: !!isTyping}); }
+  if(input){
+    input.addEventListener('input', () => {
+      input.style.height = 'auto';
+      input.style.height = Math.min(input.scrollHeight, 160) + 'px';
+      setTyping(true);
+      clearTimeout(typingTimer);
+      typingTimer = setTimeout(() => setTyping(false), 1200);
+    });
+    input.form && input.form.addEventListener('submit', () => setTyping(false));
+  }
+
+
+  function makeTempMessage(bodyText){
+    return {
+      id: 'tmp-' + Date.now(),
+      created_at: new Date().toISOString(),
+      sender_id: me,
+      sender_name: document.body.dataset.userName || 'Me',
+      sender_role: document.body.dataset.userRole || 'NAF',
+      recipient_id: otherId,
+      body: bodyText || '[attachment]',
+      status: 'sending',
+      attachments: []
+    };
+  }
+
+  const composerForm = input ? input.form : null;
+  if(composerForm){
+    composerForm.setAttribute('data-no-loader', 'true');
+    composerForm.addEventListener('submit', async (ev) => {
+      ev.preventDefault();
+      ev.stopImmediatePropagation();
+      const sendBtn = composerForm.querySelector('button[type="submit"]');
+      const bodyText = (input?.value || '').trim();
+      const hasVoice = !!(document.getElementById('voiceMessageFile')?.files?.length);
+      const hasAttachments = Array.from(composerForm.querySelectorAll('input[type="file"]')).some(f => f.files && f.files.length);
+      if(!bodyText && !hasVoice && !hasAttachments){ input?.focus(); return; }
+
+      // Show the message immediately in the thread BEFORE waiting for server response.
+      const temp = makeTempMessage(bodyText || (hasVoice ? '[voice message]' : '[attachment]'));
+      const tempNode = renderMsg(temp);
+      tempNode.dataset.tempMsg = '1';
+      chat.appendChild(tempNode);
+      scrollToBottom();
+
+      function resetDirectSendButton(){
+        if(!sendBtn) return;
+        sendBtn.disabled = false;
+        sendBtn.classList.remove('is-loading','btn-loading','loading');
+        sendBtn.removeAttribute('aria-busy');
+        sendBtn.textContent = sendBtn.dataset.originalText || 'Send Secure';
+        delete composerForm.dataset.submitted;
+        delete composerForm.dataset.uxSubmitting;
+        composerForm.classList.remove('form-is-submitting');
+      }
+      if(sendBtn){
+        sendBtn.dataset.originalText = sendBtn.dataset.originalText || (sendBtn.textContent || 'Send Secure');
+        sendBtn.disabled = true;
+        sendBtn.classList.remove('is-loading','btn-loading','loading');
+        sendBtn.removeAttribute('aria-busy');
+        sendBtn.textContent = 'Sending…';
+      }
+      try{
+        const fd = new FormData(composerForm);
+        const res = await fetch(composerForm.action, {
+          method:'POST',
+          body:fd,
+          credentials:'same-origin',
+          headers:{'X-Requested-With':'XMLHttpRequest','Accept':'application/json'}
+        });
+        const data = await res.json().catch(()=>({ok:false,error:'Invalid server response'}));
+        if(!res.ok || !data.ok) throw new Error(data.error || 'Message could not be sent.');
+
+        if(data.message){
+          const realId = String(data.message.id);
+          const already = document.querySelector('[data-msg-id="'+realId+'"]');
+          if(already){
+            tempNode.remove();
+          }else{
+            const realNode = renderMsg(data.message);
+            tempNode.replaceWith(realNode);
+          }
+          scrollToBottom();
+        }
+
+        composerForm.reset();
+        if(input){ input.value=''; input.style.height='auto'; }
+        const vs = document.getElementById('voiceRecordStatus'); if(vs){ vs.hidden = true; vs.textContent = 'Ready to record'; }
+      }catch(err){
+        tempNode.classList.add('send-failed');
+        const state = tempNode.querySelector('.msg-state-line');
+        if(state) state.innerHTML = '<span>Not sent</span><span>Retry by sending again</span>';
+        alert(err.message || 'Message could not be sent.');
+      }finally{
+        resetDirectSendButton();
+      }
+    }, true);
+  }
+
+  document.querySelectorAll('[data-template]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      if(!input) return;
+      const text = btn.getAttribute('data-template') || '';
+      input.value = input.value ? input.value + '\n' + text : text;
+      input.focus();
+      input.dispatchEvent(new Event('input'));
+    });
+  });
+
+  const emojiToggle = document.getElementById('emojiToggle');
+  const emojiPicker = document.getElementById('emojiPicker');
+  const emojiClose = document.getElementById('emojiClose');
+  const emojiGrid = document.getElementById('emojiGrid');
+  const emojis = ['👍','✅','🙏','👌','🫡','📌','📎','⚠️','🚨','🔒','🛡️','📡','📍','🕒','📝','📢','🔐','🟢','🟠','🔴','💬','📨','📤','📥','🤝','🙌','👏','💯','🔥','⭐','❗','❓','🙂','😅','😂','😀','😎','🤔','😮','😢','❤️','🇳🇬'];
+
+  function insertAtCursor(el, text){
+    if(!el) return;
+    const start = el.selectionStart ?? el.value.length;
+    const end = el.selectionEnd ?? el.value.length;
+    el.value = el.value.slice(0, start) + text + el.value.slice(end);
+    const next = start + text.length;
+    el.focus();
+    el.setSelectionRange(next, next);
+    el.dispatchEvent(new Event('input'));
+  }
+  function closeEmojiPicker(){
+    if(!emojiPicker || !emojiToggle) return;
+    emojiPicker.classList.remove('open');
+    emojiPicker.setAttribute('aria-hidden', 'true');
+    emojiToggle.setAttribute('aria-expanded', 'false');
+  }
+  function openEmojiPicker(){
+    if(!emojiPicker || !emojiToggle) return;
+    emojiPicker.classList.add('open');
+    emojiPicker.setAttribute('aria-hidden', 'false');
+    emojiToggle.setAttribute('aria-expanded', 'true');
+  }
+  if(emojiGrid && !emojiGrid.dataset.ready){
+    emojis.forEach(e => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'emoji-choice';
+      b.textContent = e;
+      b.title = 'Insert ' + e;
+      b.addEventListener('click', () => insertAtCursor(input, e));
+      emojiGrid.appendChild(b);
+    });
+    emojiGrid.dataset.ready = '1';
+  }
+  if(emojiToggle){ emojiToggle.addEventListener('click', (ev) => { ev.stopImmediatePropagation(); emojiPicker?.classList.contains('open') ? closeEmojiPicker() : openEmojiPicker(); }); }
+  if(emojiClose){ emojiClose.addEventListener('click', closeEmojiPicker); }
+  document.addEventListener('click', (ev) => { if(emojiPicker && !emojiPicker.contains(ev.target) && ev.target !== emojiToggle) closeEmojiPicker(); });
+  document.addEventListener('keydown', (ev) => { if(ev.key === 'Escape') closeEmojiPicker(); });
+
+  function bindDirectStatusSocket(socket){
+    socket = socket || window.NAF_SOCKET;
+    if(!socket || socket.__nafDirectStatusBound) return;
+    socket.__nafDirectStatusBound = true;
+    socket.on('typing', (t) => {
+      if(!t || t.scope !== 'DIRECT' || t.from_user_id !== otherId) return;
+      const el = document.getElementById('typingIndicator');
+      if(el) el.textContent = t.is_typing ? `${t.from_name || 'User'} is typing secure message…` : '';
+    });
+    socket.on('direct_delivery', (r) => {
+      if(!r || r.recipient_id !== otherId) return;
+      setMessageStatus(r.message_ids || [], 'delivered');
+      const el = document.getElementById('readReceiptHint');
+      if(el) el.textContent = `Delivered · ${new Date(r.delivered_at).toLocaleString()}`;
+    });
+    socket.on('direct_read', (r) => {
+      if(!r || r.reader_id !== otherId) return;
+      setMessageStatus(r.message_ids || [], 'read');
+      const el = document.getElementById('readReceiptHint');
+      if(el) el.textContent = `Seen by ${r.reader_name || 'recipient'} · ${new Date(r.read_at).toLocaleString()}`;
+    });
+  }
+  bindDirectStatusSocket(window.NAF_SOCKET);
+  window.addEventListener('naf:socket-ready', (ev) => bindDirectStatusSocket(ev.detail && ev.detail.socket));
+  document.addEventListener('visibilitychange', () => { if(!document.hidden) markVisibleInboundAsRead(); });
+
+  const voiceBtn = document.getElementById('voiceRecordBtn');
+  const voiceInput = document.getElementById('voiceMessageFile');
+  const voiceStatus = document.getElementById('voiceRecordStatus');
+  let mediaRecorder = null;
+  let voiceChunks = [];
+  let voiceStartedAt = null;
+
+  function setVoiceStatus(text, active){
+    if(!voiceStatus) return;
+    voiceStatus.hidden = false;
+    voiceStatus.textContent = text;
+    voiceStatus.classList.toggle('recording', !!active);
+  }
+  const voiceUploadManual = document.getElementById('voiceUploadManual');
+  function isLocalHost(){ return ['localhost','127.0.0.1','::1'].includes(window.location.hostname); }
+  function secureVoiceContext(){ return window.isSecureContext || isLocalHost(); }
+  function supportedVoice(){ return !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia && window.MediaRecorder && secureVoiceContext()); }
+  function voiceUnsupportedReason(){
+    if(!secureVoiceContext()) return 'Browser blocked microphone on insecure LAN HTTP. Open the app with http://localhost/127.0.0.1 on this PC, or configure HTTPS for LAN access. You can upload an audio file instead.';
+    if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return 'This browser cannot access microphone recording. Try Chrome, Edge, or Firefox, or upload an audio file.';
+    if(!window.MediaRecorder) return 'This browser does not support MediaRecorder. Try Chrome, Edge, or Firefox, or upload an audio file.';
+    return 'Voice recording is not available. You can upload an audio file instead.';
+  }
+  function bestAudioMime(){
+    const types = ['audio/webm;codecs=opus','audio/webm','audio/ogg;codecs=opus','audio/ogg'];
+    return types.find(t => window.MediaRecorder && MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(t)) || '';
+  }
+  function attachVoiceFile(file){
+    if(!file || !voiceInput) return;
+    try{
+      const dt = new DataTransfer();
+      dt.items.add(file);
+      voiceInput.files = dt.files;
+      setVoiceStatus('Voice file attached. Click Send Secure.', false);
+      if(input && !input.value.trim()) input.value = '[voice message]';
+    }catch(e){ setVoiceStatus('Your browser could not attach the voice file automatically. Use normal attachment upload instead.', false); }
+  }
+  async function startVoiceRecording(){
+    if(!supportedVoice()) { setVoiceStatus(voiceUnsupportedReason(), false); return; }
+    try{
+      const stream = await navigator.mediaDevices.getUserMedia({audio:true});
+      voiceChunks = [];
+      const mimeType = bestAudioMime();
+      mediaRecorder = mimeType ? new MediaRecorder(stream, {mimeType}) : new MediaRecorder(stream);
+      voiceStartedAt = Date.now();
+      mediaRecorder.ondataavailable = e => { if(e.data && e.data.size) voiceChunks.push(e.data); };
+      mediaRecorder.onstop = () => {
+        stream.getTracks().forEach(t => t.stop());
+        const blob = new Blob(voiceChunks, {type: mediaRecorder.mimeType || 'audio/webm'});
+        const ext = blob.type.includes('ogg') ? 'ogg' : 'webm';
+        const file = new File([blob], 'voice_message_' + Date.now() + '.' + ext, {type: blob.type || 'audio/webm'});
+        attachVoiceFile(file);
+        const seconds = Math.max(1, Math.round((Date.now() - voiceStartedAt) / 1000));
+        setVoiceStatus('Voice message ready (' + seconds + 's). Click Send Secure.', false);
+      };
+      mediaRecorder.start();
+      voiceBtn.classList.add('recording');
+      voiceBtn.textContent = '⏹️';
+      setVoiceStatus('Recording voice message… click stop when done.', true);
+    }catch(err){
+      let msg = 'Microphone permission denied or unavailable. Allow microphone permission, then retry.';
+      if(err && (err.name === 'NotAllowedError' || err.name === 'SecurityError')) msg = voiceUnsupportedReason();
+      if(err && err.name === 'NotFoundError') msg = 'No microphone was found on this device. You can upload an audio file instead.';
+      setVoiceStatus(msg, false);
+    }
+  }
+  function stopVoiceRecording(){
+    if(mediaRecorder && mediaRecorder.state === 'recording') mediaRecorder.stop();
+    voiceBtn.classList.remove('recording');
+    voiceBtn.textContent = '🎙️';
+  }
+  if(voiceBtn){
+    voiceBtn.addEventListener('click', () => {
+      if(mediaRecorder && mediaRecorder.state === 'recording') stopVoiceRecording();
+      else startVoiceRecording();
+    });
+    if(!supportedVoice()) voiceBtn.title = voiceUnsupportedReason();
+  }
+  if(voiceUploadManual){
+    voiceUploadManual.addEventListener('change', () => {
+      const file = voiceUploadManual.files && voiceUploadManual.files[0];
+      if(file) attachVoiceFile(file);
+    });
+  }
+
+})();
+</script>
+{% endblock %}

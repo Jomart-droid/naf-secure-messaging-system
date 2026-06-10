@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="unit-message-shell">
+  <div class="page-head compact-head">
+    <div>
+      <div class="eyebrow">UNIT INTERNAL MESSAGES</div>
+      <h1>{{ unit.code if unit else 'Unit' }} Personnel</h1>
+      <p>Message officers inside your unit. Use this for internal coordination before signals are forwarded or released.</p>
+    </div>
+    <div class="head-actions">
+      <a class="btn secondary" href="{{ url_for('msg.direct_list') }}">All Direct Messages</a>
+      <a class="btn secondary" href="{{ url_for('msg.unit_workflow_center') }}">Unit Workflow</a>
+    </div>
+  </div>
+
+  <div class="unit-message-toolbar">
+    <div class="dm-search-box compact-search">
+      <span>⌕</span>
+      <input placeholder="Search unit officer, appointment, service number…" data-filter="#unitDirectList">
+    </div>
+    <div class="unit-message-stat">
+      <b>{{ users|length }}</b>
+      <span>Unit contacts</span>
+    </div>
+    <div class="unit-message-stat">
+      <b>{{ unread_by_user.values()|sum }}</b>
+      <span>Unread</span>
+    </div>
+  </div>
+
+  <div class="unit-contact-grid" id="unitDirectList">
+    {% for u in users %}
+      {% set n = unread_by_user.get(u.id, 0) %}
+      <a class="unit-contact-card {% if n and n>0 %}has-unread{% endif %}" href="{{ url_for('msg.direct_view', user_id=u.id) }}" data-filter-item data-presence-user-id="{{ u.id }}" data-filter-text="{{ u.full_name }} {{ u.service_number }} {{ u.rank or '' }} {{ u.appointment or '' }} {{ u.role }}">
+        <div class="unit-contact-avatar">
+          {{ (u.full_name[:1] or 'U')|upper }}
+          <span class="presence-dot offline" title="Offline"></span>
+        </div>
+        <div class="unit-contact-body">
+          <div class="unit-contact-top">
+            <strong>{{ u.full_name }}</strong>
+            {% if n and n>0 %}<em>{{ n }}</em>{% endif %}
+          </div>
+          <div class="unit-contact-meta">{{ u.service_number }} · {{ u.rank or 'NAF PERSONNEL' }}</div>
+          <div class="unit-contact-tags">
+            <span>{{ u.appointment or 'Officer' }}</span>
+            <span>{{ u.role }}</span>
+          </div>
+          <small data-presence-label>Offline</small>
+        </div>
+      </a>
+    {% else %}
+      <div class="empty-state unit-empty-state">
+        <b>No unit contacts yet</b>
+        <span>Add Chief Clerk, AO, signatory officers, and Commander from Unit Officers.</span>
+        {% if can_manage_unit_officers() %}
+          <a class="btn" href="{{ url_for('admin.unit_officers') }}">Manage Unit Officers</a>
+        {% endif %}
+      </div>
+    {% endfor %}
+  </div>
+</section>
+{% endblock %}

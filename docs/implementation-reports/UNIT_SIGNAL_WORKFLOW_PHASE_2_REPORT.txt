@@ -1,0 +1,70 @@
+NAF SSS - UNIT SIGNAL WORKFLOW PHASE 2 IMPLEMENTATION REPORT
+
+Base build: NAF_SSS_18_UNIT_OFFICERS_PHASE_1_IMPLEMENTED.zip
+
+Implemented in this phase:
+1. Added unit internal workflow fields to Broadcast:
+   - current handler
+   - unit AO
+   - unit signatory
+   - unit commander
+   - routed/reviewed/signed/approved timestamps
+   - return reason and return authority
+
+2. Added internal workflow statuses:
+   - FORWARDED_TO_AO
+   - RETURNED_BY_AO
+   - APPROVED_BY_AO
+   - FORWARDED_TO_SIGNATORY
+   - SIGNED_BY_SIGNATORY
+   - PENDING_COMMANDER_APPROVAL
+   - RETURNED_BY_COMMANDER
+   - APPROVED_BY_COMMANDER
+
+3. Updated signal creation routing:
+   - Chief Clerk/unit drafter submissions now route to the unit AO where available.
+   - AO-originated signals enter the workflow after AO review stage.
+   - Commander-originated signals enter commander-approved stage pending final digital release.
+   - HQ/Admin accounts keep their previous HQ-level submission flow.
+
+4. Added unit workflow actions on signal detail page:
+   - AO Approve -> Commander
+   - AO Forward -> selected Signatory Officer
+   - AO Return -> Drafter
+   - Signatory Endorse -> Commander
+   - Signatory Return -> Correction
+   - Commander Approve -> ready for digital Sign & Release
+   - Commander Return -> Correction
+
+5. Added Unit Workflow Queue to signal creation/review page:
+   - Shows pending internal signals visible to the current authorised unit user.
+   - Shows status, pending handler, serial, classification, and creation time.
+
+6. Updated signal visibility:
+   - Unit AO, signatory, commander, current handler, drafter, and HQ admins can open workflow items.
+   - Unfinished internal workflow signals are not exposed as delivered operational traffic.
+
+7. Updated timeline:
+   - Drafted
+   - Submitted
+   - Forwarded to AO
+   - AO reviewed
+   - Forwarded to signatory
+   - Signatory endorsed
+   - Forwarded to Commander
+   - Commander approved
+   - Returned
+   - Released
+
+8. Updated release rule:
+   - Commander-approved unit signals can proceed to the existing password-backed handwritten/digital Sign & Release process.
+
+Checks:
+- Python compile check: PASSED
+- Python AST parse check: PASSED
+- CSS brace balance: PASSED
+- ZIP integrity: PASSED
+
+Notes:
+- This phase adds the internal unit routing engine. The existing direct-message module remains unchanged.
+- Full unit-level direct messaging separation can be implemented in a later phase if required.

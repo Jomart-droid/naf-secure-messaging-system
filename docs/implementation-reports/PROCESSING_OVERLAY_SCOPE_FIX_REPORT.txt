@@ -1,0 +1,16 @@
+NAF SSS 18 - Processing Overlay Scope Fix
+
+Corrected from the sidebar brand text fixed build.
+
+Changes made:
+1. Full-screen processing animation now appears only on explicit official signal-processing forms.
+2. Enabled overlay only for:
+   - main signal submission form (#broadcastForm)
+   - edit/re-submit recalled or correction signal form (#signalEditForm)
+   - sign-and-release form (#releaseSignatureForm)
+3. Removed overlay from ordinary navigation links, dashboard opening, Signal Bank browsing, searches, filters, account/admin forms, PDF/download links, and Direct Messages.
+4. Direct message composer remains data-no-loader and is fully skipped by the global UX submit handler.
+5. Button-level loading/duplicate-submit protection remains for normal forms without showing the heavy overlay.
+
+Result:
+The big processing animation is reserved for serious signal processing/send/release operations only.

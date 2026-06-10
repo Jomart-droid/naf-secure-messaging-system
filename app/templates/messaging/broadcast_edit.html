@@ -1,0 +1,195 @@
+{% extends "base.html" %}
+{% block content %}
+<style>
+  .edit-shell{max-width:1180px;margin:0 auto;display:grid;gap:16px;}
+  .edit-hero{display:flex;justify-content:space-between;gap:16px;align-items:flex-start;border:1px solid rgba(37,99,235,.16);background:linear-gradient(135deg,rgba(37,99,235,.08),rgba(15,23,42,.03));border-radius:22px;padding:18px;box-shadow:0 18px 55px rgba(15,23,42,.08)}
+  .edit-hero h1{margin:0;font-size:26px}.edit-hero p{margin:6px 0 0;color:var(--muted,#64748b);max-width:760px;line-height:1.55}.edit-mode-pill{display:inline-flex;align-items:center;gap:8px;border:1px solid rgba(245,158,11,.32);background:rgba(245,158,11,.1);color:#92400e;border-radius:999px;padding:8px 12px;font-weight:900;font-size:12px;white-space:nowrap}.dark .edit-mode-pill{color:#fbbf24}
+  .edit-grid{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:16px;align-items:start}.edit-main,.edit-side{display:grid;gap:14px}.edit-card{border:1px solid rgba(15,23,42,.12);background:var(--card-bg,#fff);border-radius:20px;padding:16px;box-shadow:0 16px 45px rgba(15,23,42,.06)}.dark .edit-card{border-color:rgba(148,163,184,.18)}
+  .edit-card h2{margin:0 0 10px;font-size:17px}.edit-card small{color:var(--muted,#64748b);font-weight:700}.edit-form label{font-weight:800;display:block}.edit-form input,.edit-form select,.edit-form textarea{width:100%;margin-top:6px}.edit-form textarea{min-height:240px;resize:vertical}.edit-row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.edit-row-3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.unit-list{max-height:250px;overflow:auto;border:1px solid rgba(15,23,42,.12);border-radius:14px;padding:8px;background:rgba(248,250,252,.72)}.dark .unit-list{background:rgba(15,23,42,.42);border-color:rgba(148,163,184,.18)}.unit-list label{display:flex;gap:9px;align-items:flex-start;padding:7px 8px;border-radius:10px;font-weight:700}.unit-list label:hover{background:rgba(37,99,235,.08)}.unit-list input{width:auto;margin-top:3px}.edit-actions{display:flex;gap:10px;flex-wrap:wrap;position:sticky;bottom:12px;z-index:5;background:rgba(255,255,255,.76);backdrop-filter:blur(12px);border:1px solid rgba(15,23,42,.12);border-radius:18px;padding:12px}.dark .edit-actions{background:rgba(15,23,42,.78);border-color:rgba(148,163,184,.18)}.side-list{display:grid;gap:9px}.side-list div{border:1px solid rgba(15,23,42,.1);border-radius:14px;padding:10px;background:rgba(248,250,252,.68)}.dark .side-list div{background:rgba(15,23,42,.36);border-color:rgba(148,163,184,.16)}.side-list span{display:block;color:var(--muted,#64748b);font-size:11px;text-transform:uppercase;letter-spacing:.08em;font-weight:900}.side-list b{display:block;margin-top:3px}.edit-alert{border:1px solid rgba(245,158,11,.34);background:rgba(245,158,11,.1);border-radius:16px;padding:12px;color:var(--text);line-height:1.5}.edit-alert b{display:block;margin-bottom:4px}.recipient-layout{display:grid;grid-template-columns:1fr 1fr;gap:12px}.muted-note{color:var(--muted,#64748b);font-size:12px;line-height:1.45;margin-top:5px}
+  @media(max-width:960px){.edit-grid{grid-template-columns:1fr}.edit-side{order:-1}.edit-row,.edit-row-3,.recipient-layout{grid-template-columns:1fr}.edit-hero{display:block}.edit-mode-pill{margin-top:12px}.edit-actions{position:static}}
+</style>
+
+<div class="edit-shell">
+  <div class="edit-hero">
+    <div>
+      <h1>{% if b.corrected_from %}Edit Correction Signal{% elif b.status == 'RECALLED' or b.recalled_at %}Edit Recalled Signal{% else %}Edit Draft Signal{% endif %}</h1>
+      <p>This screen is for controlled correction only. The signal will remain unavailable for official print/download until it is submitted again and digitally signed by the release authority.</p>
+    </div>
+    <span class="edit-mode-pill">{{ b.status }} · {{ b.originator_number or 'PENDING SERIAL' }}</span>
+  </div>
+
+  <form method="post" enctype="multipart/form-data" class="edit-form" id="signalEditForm" data-signal-processing="true">{{ csrf_field() }}
+    <div class="edit-grid">
+      <div class="edit-main">
+        <div class="edit-alert">
+          <b>Correction control</b>
+          {% if b.status == 'RECALLED' or b.recalled_at %}
+            This signal was recalled. Editing it clears the old release signature and requires a fresh Sign & Release before it becomes operational again.
+          {% elif b.corrected_from %}
+            This is an editable correction draft linked to the original signal. Edit it carefully, then submit it for fresh sign-and-release.
+          {% else %}
+            This draft may be edited before release authority validation.
+          {% endif %}
+        </div>
+
+        <div class="edit-card">
+          <h2>Signal Identity</h2>
+          <label>Subject <span class="danger">*</span>
+            <input name="title" value="{{ b.title }}" required>
+          </label>
+          <div class="edit-row-3" style="margin-top:12px;">
+            <label>Precedence Action
+              <select name="precedence_action">
+                {% for p in ['ROUTINE','PRIORITY','IMMEDIATE','FLASH'] %}<option value="{{ p }}" {% if (b.precedence_action or '').upper() == p %}selected{% endif %}>{{ p }}</option>{% endfor %}
+              </select>
+            </label>
+            <label>Precedence Info
+              <select name="precedence_info">
+                {% for p in ['ROUTINE','PRIORITY','IMMEDIATE','FLASH'] %}<option value="{{ p }}" {% if (b.precedence_info or '').upper() == p %}selected{% endif %}>{{ p }}</option>{% endfor %}
+              </select>
+            </label>
+            <label>Classification
+              <select name="security_classification">
+                {% for level in classification_choices %}<option value="{{ level }}" {% if b.security_classification == level %}selected{% endif %}>{{ level }}</option>{% endfor %}
+              </select>
+            </label>
+          </div>
+          <div class="edit-row" style="margin-top:12px;">
+            <label>File Number / Reference
+              <input name="file_reference" value="{{ b.file_reference or b.originator_number or '' }}">
+            </label>
+            <label>Message Instruction
+              <input name="message_instruction" value="{{ b.message_instruction or '' }}" placeholder="e.g. CORRECTION TO {{ b.corrected_from.originator_number if b.corrected_from else b.originator_number }}">
+            </label>
+          </div>
+        </div>
+
+        <div class="edit-card">
+          <h2>Originator and Authority Details</h2>
+          <div class="edit-row">
+            <label>From Unit
+              <select name="from_unit_id">
+                <option value="">-- select unit --</option>
+                {% for u in units %}<option value="{{ u.id }}" {% if b.from_unit_id == u.id %}selected{% endif %}>{{ u.name }} ({{ u.code }})</option>{% endfor %}
+              </select>
+            </label>
+            <label>Branch Office
+              <input name="branch_office" value="{{ b.branch_office or 'CIS' }}">
+            </label>
+          </div>
+          <div class="edit-row" style="margin-top:12px;">
+            <label>Telephone
+              <input name="telephone" value="{{ b.telephone or '' }}">
+            </label>
+            <label>Routing Chain / Remark
+              <input name="routing_chain_text" value="{{ b.routing_chain_text or '' }}">
+            </label>
+          </div>
+          <div class="edit-row" style="margin-top:12px;">
+            <label>Drafter Name
+              <input name="drafter_name" value="{{ b.drafter_name or current_user.full_name }}">
+            </label>
+            <label>Drafter Rank
+              <select name="drafter_rank"><option value="">— Select rank —</option>{% for rank in rank_options %}<option value="{{ rank }}" {% if b.drafter_rank == rank %}selected{% endif %}>{{ rank }}</option>{% endfor %}</select>
+            </label>
+          </div>
+          <div class="edit-row" style="margin-top:12px;">
+            <label>Releasing Officer Name
+              <input name="releasing_officer_name" value="{{ b.releasing_officer_name or current_user.full_name }}">
+            </label>
+            <label>Releasing Officer Rank
+              <select name="releasing_signature_rank"><option value="">— Select rank —</option>{% for rank in rank_options %}<option value="{{ rank }}" {% if b.releasing_signature_rank == rank %}selected{% endif %}>{{ rank }}</option>{% endfor %}</select>
+            </label>
+          </div>
+        </div>
+
+        <div class="edit-card">
+          <h2>Routing / Recipients</h2>
+          <div class="edit-row">
+            <label>Delivery Type
+              <select name="target_scope" id="editTargetScope">
+                <option value="UNIT" {% if b.target_scope != 'CHANNEL' %}selected{% endif %}>Unit / Selected To</option>
+                <option value="CHANNEL" {% if b.target_scope == 'CHANNEL' %}selected{% endif %}>Channel</option>
+              </select>
+            </label>
+            <label>Channel
+              <select name="channel_id">
+                <option value="">-- select channel --</option>
+                {% for c in channels %}<option value="{{ c.id }}" {% if b.channel_id == c.id %}selected{% endif %}>{{ c.name }} · {{ c.classification_level or 'RESTRICTED' }}</option>{% endfor %}
+              </select>
+            </label>
+          </div>
+          <div class="edit-row" style="margin-top:12px;">
+            <label>Visible TO line
+              <input name="msg_to" value="{{ b.msg_to or '' }}" placeholder="Leave blank to build from selected units">
+              <div class="muted-note">Use this for official display text such as ALL NAF UNITS, LIST C LESS AHQ, or CHANNEL name.</div>
+            </label>
+            <label>Visible INFO line
+              <input name="msg_info_display" value="{{ info_route_display or '' }}" placeholder="Leave blank to build from selected info units">
+            </label>
+          </div>
+          <div class="recipient-layout" style="margin-top:12px;">
+            <div>
+              <label>To / Action Units</label>
+              <div class="unit-list">
+                {% for u in units %}<label><input type="checkbox" name="action_unit_ids" value="{{ u.id }}" {% if u.id in action_unit_ids %}checked{% endif %}><span>{{ u.name }} ({{ u.code }})</span></label>{% endfor %}
+              </div>
+            </div>
+            <div>
+              <label>Info Units</label>
+              <div class="unit-list">
+                {% for u in units %}<label><input type="checkbox" name="info_unit_ids" value="{{ u.id }}" {% if u.id in info_unit_ids %}checked{% endif %}><span>{{ u.name }} ({{ u.code }})</span></label>{% endfor %}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="edit-card">
+          <h2>Signal Text</h2>
+          <label>Message Text <span class="danger">*</span>
+            <textarea name="body" required>{{ body_text|safe }}</textarea>
+          </label>
+          <div style="margin-top:12px;">
+            <label class="row" style="gap:8px;align-items:center;"><input type="checkbox" name="refers_classified_message" {% if b.refers_classified_message %}checked{% endif %}> <span>Refers to a classified message</span></label>
+          </div>
+        </div>
+
+        <div class="edit-card">
+          <h2>Internal Distribution and Attachments</h2>
+          <label>Internal Distribution
+            <textarea name="internal_distribution" style="min-height:90px;">{{ internal_distribution_clean or b.internal_distribution or 'INTERNAL DISTRIBUTION: CIS, OPS, INT' }}</textarea>
+          </label>
+          <label style="margin-top:12px;">Add Attachment(s)
+            <input type="file" name="attachments" multiple accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.png,.jpg,.jpeg,.webp,.zip">
+          </label>
+          <div style="margin-top:10px;">
+            <label class="row" style="gap:8px;align-items:center;"><input type="checkbox" name="requires_ack" {% if b.requires_ack %}checked{% endif %}> <span>Require acknowledgement after release</span></label>
+          </div>
+        </div>
+
+        <div class="edit-actions">
+          <button class="btn btn-ghost" name="edit_action" value="draft" type="submit">Save as Draft</button>
+          <button class="btn btn-primary" name="edit_action" value="submit" type="submit">Submit for Sign & Release</button>
+          <a class="btn btn-ghost" href="{{ url_for('msg.broadcast_detail', broadcast_id=b.id) }}">Cancel</a>
+        </div>
+      </div>
+
+      <aside class="edit-side">
+        <div class="edit-card">
+          <h2>Correction Summary</h2>
+          <div class="side-list">
+            <div><span>Current status</span><b>{{ b.status }}</b></div>
+            <div><span>Signal number</span><b>{{ b.originator_number or 'Pending serial' }}</b></div>
+            <div><span>Linked original</span><b>{% if b.corrected_from %}{{ b.corrected_from.originator_number or b.corrected_from.title }}{% else %}None{% endif %}</b></div>
+            <div><span>Release state</span><b>Signature will be reset after editing</b></div>
+          </div>
+        </div>
+        <div class="edit-card">
+          <h2>Important Rule</h2>
+          <small>Saving or submitting this edit removes the previous visible release signature, digital signature, ACK states, receipts, and archived PDF for this signal. A fresh release authority signature is required.</small>
+        </div>
+      </aside>
+    </div>
+  </form>
+</div>
+{% endblock %}

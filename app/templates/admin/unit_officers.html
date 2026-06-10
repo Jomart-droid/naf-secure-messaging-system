@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="admin-console unit-command-console">
+  <div class="admin-hero-panel compact-hero">
+    <div>
+      <div class="admin-eyebrow"><span class="pulse-dot"></span> UNIT USER CONTROL</div>
+      <h1>{{ unit.name }}</h1>
+      <p class="muted">Create and manage the unit workspace users. The Unit AO is the local super admin for this unit only.</p>
+    </div>
+    <div class="admin-hero-actions">
+      {% if units %}
+      <form method="get" class="inline-filter-form">
+        <label><span>Manage unit</span>
+          <select name="unit_id" onchange="this.form.submit()">
+            {% for u in units %}<option value="{{ u.id }}" {% if u.id == unit.id %}selected{% endif %}>{{ u.name }} ({{ u.code }})</option>{% endfor %}
+          </select>
+        </label>
+      </form>
+      {% endif %}
+      <a class="btn btn-ghost" href="{{ url_for('admin.unit_admin_center', unit_id=unit.id) }}">Unit Admin Center</a>
+      <a class="btn btn-ghost" href="{{ url_for('msg.direct_list') }}">Messages</a>
+    </div>
+  </div>
+
+  <div class="admin-kpi-grid unit-role-grid">
+    <div class="admin-kpi"><span>Chief Clerks</span><strong>{{ officers|selectattr('appointment','equalto','Chief Clerk')|list|length }}</strong></div>
+    <div class="admin-kpi"><span>Unit AOs</span><strong>{{ officers|selectattr('appointment','equalto','Admin Officer')|list|length }}</strong></div>
+    <div class="admin-kpi"><span>Commanders</span><strong>{{ officers|selectattr('appointment','equalto','Commander')|list|length }}</strong></div>
+    <div class="admin-kpi"><span>Active Accounts</span><strong>{{ officers|selectattr('is_active_flag')|list|length }}</strong></div>
+  </div>
+
+  <section class="admin-panel unit-ao-authority-panel">
+    <div class="admin-panel-head">
+      <div><h2>Unit AO Authority</h2><p class="muted">The Admin Officer is the unit-level super admin. This does not grant global HQ admin access.</p></div>
+    </div>
+    {% if primary_ao %}
+      <div class="identity-cell"><span class="avatar-dot">{{ (primary_ao.full_name or 'A')[:1] }}</span><div><div class="cell-title">{{ primary_ao.full_name }}</div><div class="cell-sub">{{ primary_ao.service_number }}{% if primary_ao.rank %} · {{ primary_ao.rank }}{% endif %}</div></div></div>
+    {% else %}
+      <div class="empty-state compact-empty"><strong>Create the Unit AO first.</strong><span>The AO will manage unit users, passwords and unit audit inside {{ unit.code }}.</span></div>
+    {% endif %}
+  </section>
+
+  <div class="admin-command-grid unit-officer-grid">
+    <section class="admin-panel">
+      <div class="admin-panel-head"><div><h2>Add Unit User</h2><p class="muted">The AO is the unit-level administrator. Chief Clerk drafts, AO reviews/signs or forwards, Commander gives final approval.</p></div></div>
+      <form method="post" class="admin-form-grid single">{{ csrf_field() }}
+        <input type="hidden" name="action" value="create">
+        <div class="admin-form-grid">
+          <label><span>Appointment</span>
+            <select name="appointment_key" required>
+              {% for val,label in appointment_options %}<option value="{{ val }}">{{ label }}</option>{% endfor %}
+            </select>
+          </label>
+          <label><span>Rank</span><select name="rank"><option value="">— Select rank —</option>{% for r in rank_options %}<option value="{{ r }}">{{ r }}</option>{% endfor %}</select></label>
+        </div>
+        <label><span>Full name</span><input name="full_name" required placeholder="e.g., FLT LT A Musa"></label>
+        <div class="admin-form-grid">
+          <label><span>Service number</span><input name="service_number" required placeholder="e.g., NAF/4526F"></label>
+          <label><span>Official email</span><input type="email" name="email" placeholder="optional official email"></label>
+        </div>
+        <div class="admin-form-grid">
+          <label><span>Phone</span><input name="phone" placeholder="optional"></label>
+          <label><span>Specialty</span><input name="specialty" placeholder="e.g., CIS / Admin / Ops"></label>
+        </div>
+        <div class="admin-form-grid">
+          <label><span>Clearance</span><select name="clearance_level">{% for c in ["UNCLASSIFIED","RESTRICTED","CONFIDENTIAL","SECRET","TOP SECRET"] %}<option value="{{ c }}">{{ c }}</option>{% endfor %}</select></label>
+          <label><span>Password</span><input type="password" name="password" placeholder="Leave blank to auto-generate"></label>
+        </div>
+        <div class="security-stack">
+          <label class="security-row"><span>Auto-set clearance from rank</span><input type="checkbox" name="auto_clearance" checked></label>
+          <label class="security-row"><span>Email login details</span><input type="checkbox" name="email_login_details"></label>
+        </div>
+        <button class="btn" type="submit">Create Unit User</button>
+      </form>
+    </section>
+
+    <section class="admin-panel wide-panel">
+      <div class="admin-table-toolbar">
+        <div><h2>Unit Users</h2><p class="muted">Accounts are restricted to {{ unit.code }}. AO/Unit Workspace can update passwords and manage access for this unit only.</p></div>
+        <input id="unitOfficerFilter" class="admin-search" type="search" placeholder="Search unit users…">
+      </div>
+      <div class="admin-table-wrap">
+        <table class="admin-table" id="unitOfficerTable">
+          <thead><tr><th>Officer</th><th>Appointment</th><th>Access Role</th><th>Clearance</th><th>Contact</th><th>Status</th><th>Actions</th></tr></thead>
+          <tbody>
+            {% for u in officers %}
+            <tr>
+              <td><div class="identity-cell"><span class="avatar-dot">{{ (u.full_name or 'U')[:1] }}</span><div><div class="cell-title">{{ u.full_name }}</div><div class="cell-sub">{{ u.service_number }}{% if u.rank %} · {{ u.rank }}{% endif %}</div></div></div></td>
+              <td><span class="badge-soft badge-blue">{{ u.appointment or 'Officer' }}</span></td>
+              <td><span class="badge-soft badge-green">{{ 'Unit Commander' if u.role == 'COMMANDER' else ('HQ Admin' if u.role == 'ADMIN' else ('Super Admin' if u.role == 'SUPER_ADMIN' else 'Unit Officer')) }}</span></td>
+              <td><span class="badge-soft {% if u.clearance_level in ['SECRET','TOP SECRET'] %}badge-gold{% else %}badge-green{% endif %}">{{ u.clearance_level }}</span></td>
+              <td>{{ u.email or u.phone or '—' }}</td>
+              <td>{% if u.is_active_flag %}<span class="badge-soft badge-green">ACTIVE</span>{% else %}<span class="badge-soft badge-red">DISABLED</span>{% endif %}</td>
+              <td>
+                <div class="table-actions">
+                  <a class="btn btn-sm btn-ghost" href="{{ url_for('admin.edit_unit_officer', user_id=u.id) }}">Open</a>
+                  <form method="post" action="{{ url_for('admin.reset_unit_officer_password', user_id=u.id) }}" class="unit-password-reset-inline">{{ csrf_field() }}<input type="password" name="password" placeholder="New password / blank auto"><button class="btn btn-sm btn-ghost" type="submit">Update Password</button></form>
+                  <form method="post" action="{{ url_for('admin.toggle_unit_officer', user_id=u.id) }}">{{ csrf_field() }}<button class="btn btn-sm {% if u.is_active_flag %}btn-danger{% else %}btn-ghost{% endif %}" type="submit">{{ 'Disable' if u.is_active_flag else 'Enable' }}</button></form>
+                </div>
+              </td>
+            </tr>
+            {% else %}<tr><td colspan="7" class="muted">No unit user has been added yet. Start by creating the Unit AO, Chief Clerk and Commander.</td></tr>{% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="admin-panel wide-panel">
+      <div class="admin-panel-head"><div><h2>Unit Audit Trail</h2><p class="muted">Recent actions by users attached to {{ unit.code }}.</p></div></div>
+      <div class="admin-table-wrap compact-table-wrap">
+        <table class="admin-table compact-table">
+          <thead><tr><th>Time</th><th>Actor</th><th>Action</th><th>Details</th></tr></thead>
+          <tbody>
+            {% for e in audit %}
+            <tr><td>{{ e.created_at.strftime('%d %b %y %H:%M') if e.created_at else '—' }}</td><td>{{ e.actor.full_name if e.actor else 'System' }}</td><td><span class="badge-soft badge-blue">{{ e.action }}</span></td><td class="cell-sub">{{ e.details }}</td></tr>
+            {% else %}<tr><td colspan="4" class="muted">No unit audit entries yet.</td></tr>{% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+</section>
+<script>(function(){const i=document.getElementById('unitOfficerFilter'),t=document.getElementById('unitOfficerTable');if(!i||!t)return;i.addEventListener('input',()=>{const q=i.value.toLowerCase();t.querySelectorAll('tbody tr').forEach(r=>r.style.display=!q||r.innerText.toLowerCase().includes(q)?'':'none')});})();</script>
+{% endblock %}

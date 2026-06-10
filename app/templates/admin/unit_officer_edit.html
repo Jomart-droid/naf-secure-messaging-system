@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="admin-console unit-command-console">
+  <div class="admin-hero-panel compact-hero">
+    <div>
+      <div class="admin-eyebrow"><span class="pulse-dot"></span> UNIT OFFICER RECORD</div>
+      <h1>{{ u.full_name }}</h1>
+      <p class="muted">{{ unit.name if unit else 'No unit assigned' }}</p>
+    </div>
+    <div class="admin-hero-actions"><a class="btn btn-ghost" href="{{ url_for('admin.unit_officers', unit_id=u.unit_id) }}">Back to Unit Officers</a></div>
+  </div>
+  <section class="admin-panel">
+    <div class="admin-panel-head"><div><h2>Edit Unit Officer</h2></div></div>
+    <form method="post" class="admin-form-grid single">{{ csrf_field() }}
+      <div class="admin-form-grid">
+        <label><span>Appointment</span><select name="appointment_key" required>{% for val,label in appointment_options %}<option value="{{ val }}" {% if val == current_appointment %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+        <label><span>Rank</span><select name="rank"><option value="">— Select rank —</option>{% for r in rank_options %}<option value="{{ r }}" {% if u.rank == r %}selected{% endif %}>{{ r }}</option>{% endfor %}</select></label>
+      </div>
+      <label><span>Full name</span><input name="full_name" required value="{{ u.full_name }}"></label>
+      <div class="admin-form-grid">
+        <label><span>Service number</span><input name="service_number" required value="{{ u.service_number }}"></label>
+        <label><span>Official email</span><input type="email" name="email" value="{{ u.email or '' }}"></label>
+      </div>
+      <div class="admin-form-grid">
+        <label><span>Phone</span><input name="phone" value="{{ u.phone or '' }}"></label>
+        <label><span>Specialty</span><input name="specialty" value="{{ u.specialty or '' }}"></label>
+      </div>
+      <label><span>Clearance</span><select name="clearance_level">{% for c in ["UNCLASSIFIED","RESTRICTED","CONFIDENTIAL","SECRET","TOP SECRET"] %}<option value="{{ c }}" {% if u.clearance_level == c %}selected{% endif %}>{{ c }}</option>{% endfor %}</select></label>
+      <button class="btn" type="submit">Save Officer Record</button>
+    </form>
+  </section>
+</section>
+{% endblock %}

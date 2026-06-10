@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="admin-console unit-admin-center">
+  <div class="admin-hero-panel compact-hero">
+    <div>
+      <div class="admin-eyebrow"><span class="pulse-dot"></span> UNIT ADMIN CENTER</div>
+      <h1>{{ unit.name }}</h1>
+      <p class="muted">Unit-level control room for AO administration, user control, workflow oversight and audit visibility.</p>
+    </div>
+    <div class="admin-hero-actions">
+      {% if units %}
+      <form method="get" class="inline-filter-form">
+        <label><span>Manage unit</span>
+          <select name="unit_id" onchange="this.form.submit()">
+            {% for u in units %}<option value="{{ u.id }}" {% if u.id == unit.id %}selected{% endif %}>{{ u.name }} ({{ u.code }})</option>{% endfor %}
+          </select>
+        </label>
+      </form>
+      {% endif %}
+      <a class="btn" href="{{ url_for('admin.unit_officers', unit_id=unit.id) }}">Manage Unit Users</a>
+      <a class="btn btn-ghost" href="{{ url_for('admin.unit_audit', unit_id=unit.id) }}">Unit Audit</a>
+    </div>
+  </div>
+
+  <div class="admin-kpi-grid unit-role-grid">
+    <div class="admin-kpi"><span>Unit Users</span><strong>{{ summary.total }}</strong></div>
+    <div class="admin-kpi"><span>Active</span><strong>{{ summary.active }}</strong></div>
+    <div class="admin-kpi"><span>Chief Clerks</span><strong>{{ summary.chief_clerks }}</strong></div>
+    <div class="admin-kpi"><span>Unit AOs</span><strong>{{ summary.aos }}</strong></div>
+    <div class="admin-kpi"><span>Signatories</span><strong>{{ summary.signatories }}</strong></div>
+    <div class="admin-kpi"><span>Commanders</span><strong>{{ summary.commanders }}</strong></div>
+  </div>
+
+  <div class="admin-command-grid unit-admin-grid">
+    <section class="admin-panel">
+      <div class="admin-panel-head"><div><h2>AO Control</h2><p class="muted">The AO is the unit-level super admin. AO powers are limited to this unit only.</p></div></div>
+      {% if primary_ao %}
+      <div class="identity-cell unit-admin-owner"><span class="avatar-dot">{{ (primary_ao.full_name or 'A')[:1] }}</span><div><div class="cell-title">{{ primary_ao.full_name }}</div><div class="cell-sub">{{ primary_ao.service_number }}{% if primary_ao.rank %} · {{ primary_ao.rank }}{% endif %}</div></div></div>
+      <div class="security-stack compact-stack">
+        <div class="security-row"><span>Can add/edit unit users</span><strong>YES</strong></div>
+        <div class="security-row"><span>Can reset unit user passwords</span><strong>YES</strong></div>
+        <div class="security-row"><span>Can view unit audit trail</span><strong>YES</strong></div>
+        <div class="security-row"><span>Global HQ admin rights</span><strong>NO</strong></div>
+      </div>
+      {% else %}
+      <div class="empty-state compact-empty"><strong>No Unit AO has been created.</strong><span>Create an Admin Officer / Unit AO first. This officer becomes the unit-level administrator.</span></div>
+      <a class="btn" href="{{ url_for('admin.unit_officers', unit_id=unit.id) }}">Create Unit AO</a>
+      {% endif %}
+    </section>
+
+    <section class="admin-panel wide-panel">
+      <div class="admin-panel-head"><div><h2>Unit Users</h2><p class="muted">Appointments define the internal signal chain: Chief Clerk → AO → Signatory → Commander.</p></div></div>
+      <div class="admin-table-wrap compact-table-wrap">
+        <table class="admin-table compact-table">
+          <thead><tr><th>User</th><th>Appointment</th><th>Role</th><th>Status</th></tr></thead>
+          <tbody>
+            {% for u in officers %}
+            <tr>
+              <td><div class="identity-cell"><span class="avatar-dot">{{ (u.full_name or 'U')[:1] }}</span><div><div class="cell-title">{{ u.full_name }}</div><div class="cell-sub">{{ u.service_number }}{% if u.rank %} · {{ u.rank }}{% endif %}</div></div></div></td>
+              <td><span class="badge-soft badge-blue">{{ u.appointment or 'Officer' }}</span></td>
+              <td><span class="badge-soft badge-green">{{ 'Unit Commander' if u.role == 'COMMANDER' else 'Unit Officer' }}</span></td>
+              <td>{% if u.is_active_flag %}<span class="badge-soft badge-green">ACTIVE</span>{% else %}<span class="badge-soft badge-red">DISABLED</span>{% endif %}</td>
+            </tr>
+            {% else %}<tr><td colspan="4" class="muted">No users in this unit yet.</td></tr>{% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="admin-panel wide-panel">
+      <div class="admin-panel-head"><div><h2>Recent Unit Signals</h2><p class="muted">Signals originating from this unit.</p></div></div>
+      <div class="admin-table-wrap compact-table-wrap">
+        <table class="admin-table compact-table">
+          <thead><tr><th>Signal</th><th>Status</th><th>Classification</th><th>Date</th></tr></thead>
+          <tbody>
+            {% for b in recent_signals %}
+            <tr><td><a href="{{ url_for('msg.broadcast_detail', broadcast_id=b.id) }}">{{ b.title }}</a><div class="cell-sub">{{ b.originator_number or '—' }}</div></td><td><span class="badge-soft badge-blue">{{ b.status }}</span></td><td>{{ b.security_classification or '—' }}</td><td>{{ b.created_at.strftime('%d %b %y %H:%M') if b.created_at else '—' }}</td></tr>
+            {% else %}<tr><td colspan="4" class="muted">No unit signals yet.</td></tr>{% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="admin-panel wide-panel">
+      <div class="admin-panel-head"><div><h2>Recent Unit Audit</h2><p class="muted">Latest accountable actions by users in {{ unit.code }}.</p></div></div>
+      <div class="admin-table-wrap compact-table-wrap">
+        <table class="admin-table compact-table">
+          <thead><tr><th>Time</th><th>Actor</th><th>Action</th><th>Details</th></tr></thead>
+          <tbody>
+            {% for e in recent_audit %}
+            <tr><td>{{ e.created_at.strftime('%d %b %y %H:%M') if e.created_at else '—' }}</td><td>{{ e.actor.full_name if e.actor else 'System' }}</td><td><span class="badge-soft badge-blue">{{ e.action }}</span></td><td class="cell-sub">{{ e.details }}</td></tr>
+            {% else %}<tr><td colspan="4" class="muted">No unit audit entries yet.</td></tr>{% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+</section>
+{% endblock %}

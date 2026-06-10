@@ -1,0 +1,26 @@
+DRAFTER RANK DROPDOWN CHECK REPORT
+
+Implemented changes:
+1. Added Broadcast.drafter_rank column in app/models.py.
+2. Added SQLite auto-upgrade column: broadcast.drafter_rank in app/__init__.py.
+3. Added Drafter's Rank dropdown to app/templates/messaging/broadcasts.html.
+4. Dropdown uses all NAF rank abbreviations:
+   ACM, LAC, CPL, SGT, FS, WO, MWO, AWO,
+   PLT OFFR, FG OFFR, FLT LT, SQN LDR, WG CDR, GP CAPT,
+   AIR CDRE, AVM, AIR MSHL, AIR CHIEF MSHL.
+5. Print/export display now renders: DRAFTER NAME (RANK), with only the rank in brackets.
+   Example: JOSIAH UKANDU (CPL).
+6. Existing drafter block positioning in broadcast_print.html was preserved.
+7. Releasing officer rank dropdown now uses the same all-rank abbreviation list.
+8. Drafter rank is included in autosave and signature payload integrity.
+9. Corrected-signal workflow carries drafter rank forward.
+10. Compile check completed successfully: python -m compileall app.
+
+Files changed:
+- app/models.py
+- app/__init__.py
+- app/routes/messaging.py
+- app/routes/admin.py
+- app/templates/messaging/broadcasts.html
+- app/templates/messaging/broadcast_print.html
+- app/templates/messaging/broadcast_detail.html

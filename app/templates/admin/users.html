@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="admin-console">
+  <div class="admin-hero-panel">
+    <div class="admin-eyebrow"><span class="pulse-dot"></span> GLOBAL ACCESS CONTROL</div>
+    <h1>Global Users</h1>
+    <p class="muted">Create HQ/Admin accounts and view-only officers only. Unit workspace accounts are created from <b>Unit Accounts</b>. Chief Clerk, AO, Commander, Signatory and Other Officers are created from <b>Unit Users</b> inside the unit workspace.</p>
+    <div class="admin-hero-actions">
+      <a class="btn" href="{{ url_for('admin.unit_accounts') }}">Unit Accounts</a>
+      <a class="btn btn-ghost" href="{{ url_for('admin.export_users_csv') }}">Export Global Users</a>
+      <a class="btn btn-ghost" href="{{ url_for('admin.sessions') }}">Sessions</a>
+    </div>
+  </div>
+
+  <div class="admin-kpi-grid">
+    <div class="admin-kpi"><span>Global Accounts</span><strong>{{ users|length }}</strong></div>
+    <div class="admin-kpi"><span>View-Only Officers</span><strong>{{ users|selectattr('role','equalto','OFFICER')|list|length }}</strong></div>
+    <div class="admin-kpi"><span>HQ Admins</span><strong>{{ users|selectattr('role','equalto','ADMIN')|list|length }}</strong></div>
+    <div class="admin-kpi"><span>Restricted Flow</span><strong>Clean</strong><small>No unit users here</small></div>
+  </div>
+
+  <div class="admin-command-grid">
+    <section class="admin-panel">
+      <div class="admin-panel-head"><div><h2>Create Global User</h2><p class="muted">Use this for HQ/Admin users and view-only officers. Do not create Unit Accounts or unit workflow officers here.</p></div></div>
+      <form method="post" class="admin-form-grid single">{{ csrf_field() }}
+        <label><span>Role</span><select name="role">{% for val,label in role_options %}<option value="{{ val }}">{{ label }}</option>{% endfor %}</select></label>
+        <label><span>Full name</span><input name="full_name" required placeholder="e.g., WG CDR A Musa"></label>
+        <div class="admin-form-grid">
+          <label><span>Service number</span><input name="service_number" required placeholder="e.g., NAF/4526F"></label>
+          <label><span>Official email</span><input type="email" name="email" placeholder="official email"></label>
+        </div>
+        <div class="admin-form-grid">
+          <label><span>Rank</span><select name="rank"><option value="">— Select rank —</option>{% for r in rank_options %}<option value="{{ r }}">{{ r }}</option>{% endfor %}</select></label>
+          <label><span>Unit assignment, optional</span><select name="unit_id"><option value="">— No unit —</option>{% for u in units %}<option value="{{ u.id }}">{{ u.name }} ({{ u.code }})</option>{% endfor %}</select></label>
+        </div>
+        <div class="admin-form-grid">
+          <label><span>Specialty</span><input name="specialty" placeholder="optional"></label>
+          <label><span>Phone</span><input name="phone" placeholder="optional"></label>
+        </div>
+        <div class="admin-form-grid">
+          <label><span>Clearance</span><select name="clearance_level">{% for c in ["UNCLASSIFIED","RESTRICTED","CONFIDENTIAL","SECRET","TOP SECRET"] %}<option value="{{ c }}">{{ c }}</option>{% endfor %}</select></label>
+          <label><span>Password</span><input type="password" name="password" placeholder="Leave blank to auto-generate"></label>
+        </div>
+        <div class="security-stack">
+          <label class="security-row"><span>Auto-set clearance from rank</span><input type="checkbox" name="auto_clearance" checked></label>
+          <label class="security-row"><span>Email login details</span><input type="checkbox" name="email_login_details"></label>
+        </div>
+        <button class="btn" type="submit">Create Global User</button>
+      </form>
+    </section>
+
+    <section class="admin-panel">
+      <div class="admin-panel-head"><div><h2>Correct Creation Paths</h2></div></div>
+      <div class="security-stack">
+        <div class="security-row"><span>Unit Account</span><a class="btn btn-sm" href="{{ url_for('admin.unit_accounts') }}">Create from existing unit</a></div>
+        <div class="security-row"><span>Chief Clerk / AO / Commander</span><b>Use Unit Users after unit login exists</b></div>
+        <div class="security-row"><span>View-only Officer</span><b>Create here</b></div>
+        <div class="security-row"><span>HQ/Admin User</span><b>Create here</b></div>
+      </div>
+    </section>
+
+    <section class="admin-panel wide-panel">
+      <div class="admin-table-toolbar">
+        <div><h2>Global User Directory</h2><p class="muted">This list intentionally excludes Unit Accounts and internal Unit Users.</p></div>
+        <input id="userFilter" class="admin-search" type="search" placeholder="Search global users…">
+      </div>
+      <div class="admin-table-wrap">
+        <table class="admin-table" id="userTable">
+          <thead><tr><th>Identity</th><th>Role</th><th>Clearance</th><th>Unit</th><th>Email</th><th>Status</th><th></th></tr></thead>
+          <tbody>
+            {% for u in users %}
+            <tr>
+              <td><div class="identity-cell"><span class="avatar-dot">{{ (u.full_name or 'U')[:1] }}</span><div><div class="cell-title">{{ u.full_name }}</div><div class="cell-sub">{{ u.service_number }}{% if u.rank %} · {{ u.rank }}{% endif %}</div></div></div></td>
+              <td><span class="badge-soft badge-blue">{% if u.role == 'OFFICER' %}VIEW-ONLY{% elif u.role == 'ADMIN' %}HQ ADMIN{% elif u.role == 'SUPER_ADMIN' %}SUPER ADMIN{% else %}{{ u.role }}{% endif %}</span></td>
+              <td><span class="badge-soft {% if u.clearance_level in ['SECRET','TOP SECRET'] %}badge-gold{% else %}badge-green{% endif %}">{{ u.clearance_level }}</span></td>
+              <td>{{ u.unit.code if u.unit else "—" }}</td>
+              <td>{{ u.email or '—' }}</td>
+              <td>{% if u.is_active_flag %}<span class="badge-soft badge-green">ACTIVE</span>{% else %}<span class="badge-soft badge-red">DISABLED</span>{% endif %}</td>
+              <td><a class="btn btn-sm" href="{{ url_for('admin.edit_user', user_id=u.id) }}">Open</a></td>
+            </tr>
+            {% else %}<tr><td colspan="7" class="muted">No global users created yet.</td></tr>{% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+</section>
+<script>(function(){const i=document.getElementById('userFilter'),t=document.getElementById('userTable');if(!i||!t)return;i.addEventListener('input',()=>{const q=i.value.toLowerCase();t.querySelectorAll('tbody tr').forEach(r=>r.style.display=!q||r.innerText.toLowerCase().includes(q)?'':'none')});})();</script>
+{% endblock %}

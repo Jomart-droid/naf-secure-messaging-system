@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="admin-world">
+  <div class="admin-hero-v2">
+    <div>
+      <div class="hero-eyebrow"><span class="pulse-dot"></span> ADMIN CONTROL PLANE • GOVERNANCE</div>
+      <h1>System Command Administration</h1>
+      
+    </div>
+    <div class="admin-health-card">
+      <span class="status-dot live"></span>
+      <div><b>Control Plane Online</b></div>
+    </div>
+  </div>
+
+  <div class="metric-mosaic admin-mosaic">
+    <a class="metric-tile" href="{{ url_for('admin.users') }}"><span class="metric-label">Personnel Accounts</span><strong>{{ users }}</strong></a>
+    <a class="metric-tile" href="{{ url_for('admin.units') }}"><span class="metric-label">NAF Units</span><strong>{{ units }}</strong></a>
+    <a class="metric-tile" href="{{ url_for('admin.channels') }}"><span class="metric-label">Mission Channels</span><strong>{{ channels }}</strong></a>
+  </div>
+
+  <div class="ops-grid-v2 admin-layout-v2">
+    <section class="glass-panel">
+      <div class="panel-heading compact"><div><h2>Admin Quick Actions</h2></div></div>
+      <div class="action-grid-v2 admin-actions-v2">
+        <a href="{{ url_for('admin.users') }}"><span>👥</span><b>Users</b></a>
+        <a href="{{ url_for('admin.units') }}"><span>⎈</span><b>Units</b></a>
+        <a href="{{ url_for('admin.channels') }}"><span>📡</span><b>Channels</b></a>
+        <a href="{{ url_for('admin.broadcasts_admin') }}"><span>⚑</span><b>Signals</b></a>
+        <a href="{{ url_for('admin.settings') }}"><span>⚙</span><b>Settings</b></a>
+        {% if current_user.role == 'SUPER_ADMIN' %}<a href="{{ url_for('admin.logs') }}"><span>⎇</span><b>Audit</b></a>{% endif %}
+      </div>
+    </section>
+
+    <section class="glass-panel">
+      <div class="panel-heading compact"><div><h2>Latest Audit Feed</h2></div>{% if current_user.role == "SUPER_ADMIN" %}<a class="btn btn-ghost" href="{{ url_for('admin.logs') }}">Open logs</a>{% endif %}</div>
+      <ul class="premium-feed">
+        {% for a in audits %}
+          <li class="feed-item">
+            <span class="feed-icon">⎇</span>
+            <div><a>{{ a.action }}</a><p>{{ a.details or '' }}</p></div>
+            <time>{{ a.created_at.strftime('%b %d %H:%M') }}</time>
+          </li>
+        {% else %}
+          <li class="muted">No audit events yet.</li>
+        {% endfor %}
+      </ul>
+    </section>
+  </div>
+</section>
+{% endblock %}

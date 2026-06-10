@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="dm-command-shell">
+  <div class="dm-hero-panel dm-hero-compact">
+    <div class="dm-hero-copy">
+      <div class="eyebrow">DIRECT COMMUNICATION</div>
+      <h1>Direct Messages</h1>
+      <div class="dm-hero-stats">
+        <span><b>{{ users|length }}</b> Contacts</span>
+        <span><b>{{ unread_by_user.values()|sum }}</b> Unread</span>
+        {% if allow_external_dm %}<span><b>EXT</b> External access enabled</span>{% else %}<span><b>UNIT</b> Unit access only</span>{% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="dm-toolbar-panel">
+    <div class="dm-search-box">
+      <span>⌕</span>
+      <input placeholder="Search name, service number, appointment or unit…" data-filter="#directList">
+    </div>
+    {% if current_user.unit_id %}<a class="btn secondary" href="{{ url_for('msg.unit_direct_list') }}">Unit Messages</a>{% endif %}
+  </div>
+
+  <div class="dm-section-stack" id="directList">
+    {% for key, section in contact_sections.items() %}
+      {% if section.users %}
+      <details class="dm-contact-section" open>
+        <summary>
+          <span><strong>{{ section.title }}</strong><small>{{ section.hint }}</small></span>
+          <em>{{ section.users|length }}</em>
+        </summary>
+        <div class="dm-contact-grid">
+          {% for u in section.users %}
+            {% set n = unread_by_user.get(u.id, 0) %}
+            <a class="dm-contact-card {% if n and n>0 %}has-unread{% endif %}" href="{{ url_for('msg.direct_view', user_id=u.id) }}" data-filter-item data-presence-user-id="{{ u.id }}" data-filter-text="{{ u.full_name }} {{ u.service_number }} {{ u.role }} {{ u.rank or '' }} {{ u.appointment or '' }} {{ u.unit.code if u.unit else '' }}">
+              <div class="dm-contact-avatar">
+                {{ (u.full_name[:1] or 'U')|upper }}
+                <span class="presence-dot offline" title="Offline"></span>
+              </div>
+              <div class="dm-contact-main">
+                <div class="dm-contact-top">
+                  <strong>{{ u.full_name }}</strong>
+                  {% if n and n>0 %}<em>{{ n }}</em>{% endif %}
+                </div>
+                <div class="dm-contact-meta">{{ u.service_number }} · {{ u.rank or u.role }}</div>
+                <div class="dm-presence-label" data-presence-label>Offline</div>
+                <div class="dm-contact-tags">
+                  <span>{{ u.unit.code if u.unit else 'NO UNIT' }}</span>
+                  <span>{{ u.appointment or u.role }}</span>
+                </div>
+              </div>
+            </a>
+          {% endfor %}
+        </div>
+      </details>
+      {% endif %}
+    {% endfor %}
+
+    {% if not users %}
+      <div class="dm-empty-state">
+        <b>No direct message contacts available</b>
+        <span>Your account currently has no authorised contacts.</span>
+      </div>
+    {% endif %}
+  </div>
+</section>
+{% endblock %}

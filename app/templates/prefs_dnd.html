@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="toprow">
+  <div>
+    <h1>Preferences</h1>
+    
+  </div>
+</div>
+
+<div class="card hud" style="max-width:820px;">
+  <form method="post" class="form-grid">{{ csrf_field() }}
+    <label>
+      Do Not Disturb
+      <select name="dnd_enabled">
+        <option value="0" {% if not p.dnd_enabled %}selected{% endif %}>Off</option>
+        <option value="1" {% if p.dnd_enabled %}selected{% endif %}>On</option>
+      </select>
+    </label>
+
+    <label>Start hour (0–23)
+      <input type="number" name="dnd_start_hour" min="0" max="23" value="{{ p.dnd_start_hour }}">
+    </label>
+
+    <label>End hour (0–23)
+      <input type="number" name="dnd_end_hour" min="0" max="23" value="{{ p.dnd_end_hour }}">
+    </label>
+
+    <button class="btn" type="submit">Save</button>
+  </form>
+
+  <div class="muted" style="margin-top:12px;">
+    DND reduces pop notifications; messages still arrive and will appear in your lists.
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Notifications</h1>
+    
+  </div>
+  <div class="toolbar" style="min-width:320px;">
+    <div class="input-wrap" style="flex:1; max-width:360px;">
+      <span class="input-ico">⌕</span>
+      <input class="input icon-left" placeholder="Filter notifications…" data-filter="#notifList">
+    </div>
+    <a class="btn secondary" href="{{ url_for('main.prefs_dnd') }}">Do Not Disturb</a>
+  </div>
+</div>
+
+<div class="card hud" style="max-width:980px;">
+  {% if unread and unread>0 %}
+    <div class="muted" style="margin-bottom:10px;">Unread: <b>{{ unread }}</b></div>
+  {% endif %}
+
+  <div class="chipbar" data-chip-group data-chip-target="#notifList" style="margin-bottom:12px;">
+    <span class="chip active" data-chip data-chip-value="all"><span class="dot"></span>All</span>
+    <span class="chip" data-chip data-chip-value="new"><span class="dot"></span>New</span>
+    <span class="chip" data-chip data-chip-value="read"><span class="dot"></span>Read</span>
+  </div>
+
+  {% if not items %}
+    <div class="empty">
+      <div class="big">No notifications yet</div>
+      <div>System alerts, acknowledgements, and messages will show up here.</div>
+    </div>
+  {% else %}
+    <div class="list" id="notifList">
+      {% for n in items %}
+        <div class="list-item" data-filter-item data-chip-item="{{ 'read' if n.is_read else 'new' }}" data-filter-text="{{ n.title }} {{ n.body }} {{ n.created_at.strftime('%Y-%m-%d %H:%M') }}">
+          <div style="flex:1;">
+            <div style="display:flex; gap:10px; align-items:center;">
+              <div><b>{{ n.title }}</b></div>
+              {% if not n.is_read %}<span class="badge">NEW</span>{% else %}<span class="badge-soft badge-green">SEEN</span>{% endif %}
+              <span class="muted" style="margin-left:auto;">{{ n.created_at.strftime("%Y-%m-%d %H:%M") }}</span>
+            </div>
+            {% if n.body %}
+              <div class="muted" style="margin-top:6px; white-space:pre-wrap;">{{ n.body }}</div>
+            {% endif %}
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  {% endif %}
+</div>
+{% endblock %}
+
+<script id="notificationBadgeClear">
+(function(){
+  const badge = document.getElementById('badge-notif');
+  if(badge){ badge.textContent = ''; badge.style.display = 'none'; }
+})();
+</script>

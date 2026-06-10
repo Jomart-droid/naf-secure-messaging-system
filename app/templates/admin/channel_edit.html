@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="admin-console">
+  <div class="admin-hero-panel"><div class="admin-eyebrow"><span class="pulse-dot"></span> CHANNEL CONTROL</div><h1>Edit Channel</h1><div class="admin-hero-actions"><a class="btn btn-ghost" href="{{ url_for('admin.channels') }}">Back to Channels</a></div></div>
+  <section class="admin-panel" style="max-width:920px;">
+    <form method="post" class="admin-form-grid single">{{ csrf_field() }}
+      <label><span>Name</span><input name="name" value="{{ channel.name }}" required></label>
+      <label><span>Description</span><input name="description" value="{{ channel.description or '' }}"></label>
+      <div class="admin-form-grid">
+        <label><span>Scope</span><select name="scope"><option value="UNIT" {% if channel.scope=='UNIT' %}selected{% endif %}>UNIT</option><option value="MISSION" {% if channel.scope=='MISSION' %}selected{% endif %}>MISSION</option></select></label>
+        <label><span>Classification</span><select name="clearance_level"><option {% if channel.classification_level=='RESTRICTED' %}selected{% endif %}>RESTRICTED</option><option {% if channel.classification_level=='CONFIDENTIAL' %}selected{% endif %}>CONFIDENTIAL</option><option {% if channel.classification_level=='SECRET' %}selected{% endif %}>SECRET</option><option {% if channel.classification_level=='TOP SECRET' %}selected{% endif %}>TOP SECRET</option></select></label>
+      </div>
+      <label><span>Units in Channel</span><select name="unit_ids" multiple size="8">{% set channel_unit_ids = channel.units|map(attribute='id')|list %}{% for u in units %}<option value="{{ u.id }}" {% if u.id in channel_unit_ids %}selected{% endif %}>{{ u.code }} · {{ u.name }}</option>{% endfor %}</select></label>
+      <label><span>Individual Officers</span><select name="officer_ids" multiple size="8">{% set channel_member_ids = channel.members|map(attribute='id')|list %}{% for u in users %}<option value="{{ u.id }}" {% if u.id in channel_member_ids %}selected{% endif %}>{{ u.rank or '' }} {{ u.full_name }} · {{ u.service_number }}</option>{% endfor %}</select></label>
+      <button class="btn" type="submit">Save Channel</button>
+    </form>
+  </section>
+</section>
+{% endblock %}

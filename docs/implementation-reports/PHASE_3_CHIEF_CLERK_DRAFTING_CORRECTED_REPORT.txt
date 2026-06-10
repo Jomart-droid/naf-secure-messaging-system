@@ -1,0 +1,49 @@
+PHASE 3 CORRECTED IMPLEMENTATION REPORT
+=======================================
+
+Focus:
+- Enforce the real unit signal drafting route described by the user.
+- Unit-originated signals must begin with the Chief Clerk.
+- AO, signatory officers and Commander are workflow authorities, not normal signal drafters.
+
+Implemented:
+1. Added strict Chief Clerk drafting helper:
+   - is_unit_chief_clerk(user)
+   - is_unit_drafter(user) now maps to Chief Clerk only.
+
+2. Corrected can_create_signal():
+   - HQ Admin/Super Admin retain platform-level signal creation.
+   - Inside a unit, only Chief Clerk can create/draft unit-originated signals.
+   - AO, Commander, Signatory Officer and Other Officer cannot originate signals from the composer.
+
+3. Corrected target-scope permission:
+   - Unit external routing selection is allowed at draft time for Chief Clerk only.
+   - Final external sending remains blocked until workflow approval/release is completed.
+
+4. Corrected initial unit workflow route:
+   - Submitted unit signals always route to Unit AO first.
+   - Removed previous shortcut where AO-created signals could begin after AO review.
+   - Removed previous shortcut where Commander-originated signals could begin as commander-approved.
+
+5. Added submission guard:
+   - If a non-Chief-Clerk unit account tries to submit through the composer, it is blocked and redirected to Unit Workflow.
+
+6. Added AO existence guard:
+   - Chief Clerk cannot forward a submitted unit signal unless an Admin Officer / Unit AO exists in that unit.
+
+7. Corrected returned-signal resubmission:
+   - Only Chief Clerk can edit/resubmit returned unit signals.
+   - Resubmitted returned signals go back to AO.
+
+8. Preserved:
+   - AO unit-super-admin foundation from Phase 2.
+   - Unit Users creation/management from Phase 1.
+   - Existing HQ/Admin platform workflow.
+
+Correct workflow after this phase:
+Chief Clerk drafts -> Forwarded to AO -> AO reviews/returns/forwards/signs in later workflow phases.
+
+Checks:
+- Python compile check passed.
+- Flask startup smoke check passed where dependencies are available.
+- ZIP integrity test passed after packaging.

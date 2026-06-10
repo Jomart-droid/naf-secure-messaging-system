@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+{% block content %}
+<style>
+  .bank-tabs{display:flex;gap:10px;flex-wrap:wrap;margin:14px 0 18px}.bank-tab{display:flex;align-items:center;gap:8px;padding:10px 14px;border-radius:14px;text-decoration:none;border:1px solid var(--border);background:var(--panel);color:var(--text);font-weight:800}.bank-tab.active{background:#0f2f5f;color:#fff;border-color:#0f2f5f}.bank-tab .count{font-size:12px;padding:2px 8px;border-radius:999px;background:rgba(148,163,184,.22)}.bank-toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:end}.bank-toolbar label{min-width:170px;flex:1}.bank-table-wrap{overflow-x:auto}.bank-table{width:100%;border-collapse:separate;border-spacing:0 10px}.bank-table th{font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);text-align:left;padding:0 12px}.bank-table td{background:var(--panel);border-top:1px solid var(--border);border-bottom:1px solid var(--border);padding:14px 12px;vertical-align:top}.bank-table td:first-child{border-left:1px solid var(--border);border-radius:16px 0 0 16px}.bank-table td:last-child{border-right:1px solid var(--border);border-radius:0 16px 16px 0}.sig-title{font-weight:900;color:var(--text);margin-bottom:4px}.sig-ref{font-family:Consolas,Menlo,monospace;font-size:12px;color:var(--muted);word-break:break-word}.activity-mini{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}.activity-mini span{font-size:12px;padding:4px 8px;border-radius:999px;background:var(--soft);color:var(--text);border:1px solid var(--border)}.section-note{font-size:13px;color:var(--muted);margin-top:6px}.pager{display:flex;gap:10px;justify-content:flex-end;align-items:center;margin-top:14px}.signal-actions{display:flex;gap:8px;flex-wrap:wrap}.classification-top{background:#fee2e2!important;color:#991b1b!important;border-color:#fecaca!important}.classification-secret{background:#dcfce7!important;color:#166534!important;border-color:#bbf7d0!important}.classification-confidential{background:#fef3c7!important;color:#92400e!important;border-color:#fde68a!important}@media(max-width:760px){.bank-toolbar label{min-width:100%}.bank-table thead{display:none}.bank-table,.bank-table tbody,.bank-table tr,.bank-table td{display:block;width:100%}.bank-table tr{margin-bottom:12px}.bank-table td{border-left:1px solid var(--border);border-right:1px solid var(--border);border-radius:0!important}.bank-table td:first-child{border-radius:16px 16px 0 0!important}.bank-table td:last-child{border-radius:0 0 16px 16px!important}.signal-actions .btn{width:100%;justify-content:center}}
+</style>
+
+<div class="page-head">
+  <div>
+    <h1>Signal Bank</h1>
+    
+  </div>
+  <div class="toolbar">
+    <a class="btn btn-ghost" href="{{ url_for('main.search') }}">Advanced Search</a>
+    <a class="btn btn-ghost" href="{{ url_for('msg.signal_bank_export_csv', q=q, classification=classification, priority=priority, integrity=integrity) }}">Export CSV</a>
+    <a class="btn" href="{{ url_for('msg.signal_bank_export_zip', q=q, classification=classification, priority=priority, integrity=integrity) }}">Export ZIP Backup</a>
+  </div>
+</div>
+
+<div class="bank-tabs" aria-label="Signal archive sections">
+  <a class="bank-tab {{ 'active' if section=='today' else '' }}" href="{{ url_for('msg.signal_bank', section='today', q=q, classification=classification, priority=priority, integrity=integrity, status=status, unit_id=unit_id, ack=ack_filter, activity=activity_filter, date_from=date_from, date_to=date_to) }}">Today’s Signals <span class="count">{{ sections.today or 0 }}</span></a>
+  <a class="bank-tab {{ 'active' if section=='released' else '' }}" href="{{ url_for('msg.signal_bank', section='released', q=q, classification=classification, priority=priority, integrity=integrity, status=status, unit_id=unit_id, ack=ack_filter, activity=activity_filter, date_from=date_from, date_to=date_to) }}">All Released <span class="count">{{ sections.released }}</span></a>
+  {% if not is_view_only_officer() %}<a class="bank-tab {{ 'active' if section=='pending_ack' else '' }}" href="{{ url_for('msg.signal_bank', section='pending_ack', q=q, classification=classification, priority=priority, integrity=integrity, status=status, unit_id=unit_id, ack=ack_filter, activity=activity_filter, date_from=date_from, date_to=date_to) }}">Pending ACK <span class="count">{{ sections.pending_ack }}</span></a>{% endif %}
+  <a class="bank-tab {{ 'active' if section=='printed' else '' }}" href="{{ url_for('msg.signal_bank', section='printed', q=q, classification=classification, priority=priority, integrity=integrity, status=status, unit_id=unit_id, ack=ack_filter, activity=activity_filter, date_from=date_from, date_to=date_to) }}">Printed <span class="count">{{ sections.printed }}</span></a>
+  <a class="bank-tab {{ 'active' if section=='downloaded' else '' }}" href="{{ url_for('msg.signal_bank', section='downloaded', q=q, classification=classification, priority=priority, integrity=integrity, status=status, unit_id=unit_id, ack=ack_filter, activity=activity_filter, date_from=date_from, date_to=date_to) }}">Downloaded <span class="count">{{ sections.downloaded }}</span></a>
+  <a class="bank-tab {{ 'active' if section=='top_secret' else '' }}" href="{{ url_for('msg.signal_bank', section='top_secret', q=q, classification=classification, priority=priority, integrity=integrity, status=status, unit_id=unit_id, ack=ack_filter, activity=activity_filter, date_from=date_from, date_to=date_to) }}">Top Secret <span class="count">{{ sections.top_secret }}</span></a>
+</div>
+
+<div class="card hud">
+  <form method="get" class="bank-toolbar">
+    <input type="hidden" name="section" value="{{ section }}">
+    <label>Search
+      <input class="input" type="text" name="q" value="{{ q }}" placeholder="Signal ref, title, checksum, from, to, file reference...">
+    </label>
+    <label>Classification
+      <select name="classification"><option value="">All</option>{% for level in classification_choices %}<option value="{{ level }}" {% if classification == level %}selected{% endif %}>{{ level }}</option>{% endfor %}</select>
+    </label>
+    <label>Priority
+      <select name="priority"><option value="">All</option>{% for p in Priority %}<option value="{{ p.value }}" {% if priority == p.value %}selected{% endif %}>{{ p.value }}</option>{% endfor %}</select>
+    </label>
+    <label>Status
+      <select name="status"><option value="">All</option>{% for s in ['RELEASED','RECALLED','ARCHIVED','APPROVED','SUBMITTED','DRAFT'] %}<option value="{{ s }}" {% if status == s %}selected{% endif %}>{{ s }}</option>{% endfor %}</select>
+    </label>
+    <label>Unit
+      <select name="unit_id"><option value="">All units</option>{% for u in units %}<option value="{{ u.id }}" {% if unit_id|string == u.id|string %}selected{% endif %}>{{ u.name }} ({{ u.code }})</option>{% endfor %}</select>
+    </label>
+    {% if not is_view_only_officer() %}
+    <label>ACK
+      <select name="ack"><option value="">All</option><option value="pending" {% if ack_filter=='pending' %}selected{% endif %}>Pending</option><option value="acknowledged" {% if ack_filter=='acknowledged' %}selected{% endif %}>Acknowledged</option></select>
+    </label>
+    {% endif %}
+    <label>Activity
+      <select name="activity"><option value="">All</option><option value="printed" {% if activity_filter=='printed' %}selected{% endif %}>Printed</option><option value="downloaded" {% if activity_filter=='downloaded' %}selected{% endif %}>Downloaded</option></select>
+    </label>
+    <label>From date<input type="date" name="date_from" value="{{ date_from }}"></label>
+    <label>To date<input type="date" name="date_to" value="{{ date_to }}"></label>
+    <label>Integrity
+      <select name="integrity"><option value="">All</option>{% for s in ['VERIFIED','MISMATCH','PENDING'] %}<option value="{{ s }}" {% if integrity == s %}selected{% endif %}>{{ s }}</option>{% endfor %}</select>
+    </label>
+    <button class="btn" type="submit">Apply Filters</button>
+    <a class="btn btn-ghost" href="{{ url_for('msg.signal_bank') }}">Reset</a>
+  </form>
+</div>
+
+<div class="card hud" style="margin-top:16px;">
+  <div class="row-between" style="margin-bottom:12px;gap:12px;">
+    <div>
+      <h2 style="margin:0;">{% if section == 'today' %}Today’s Signals{% else %}Archived Signals{% endif %}</h2>
+      <div class="section-note">Showing {{ archives|length }} of {{ total }} result(s). Page {{ page }} of {{ pages }}.</div>
+    </div>
+  </div>
+  <div class="bank-table-wrap">
+    <table class="bank-table">
+      <thead><tr><th>Signal</th><th>Routing</th><th>Status</th>{% if not is_view_only_officer() %}<th>ACK / Activity</th>{% else %}<th>Activity</th>{% endif %}<th>Integrity</th><th>Actions</th></tr></thead>
+      <tbody>
+      {% for a in archives %}
+        {% set b = a.broadcast %}
+        {% set counts = event_counts.get(a.broadcast_id, {}) %}
+        {% set ack = ack_summary.get(a.broadcast_id, {}) %}
+        {% set cls = (a.classification or b.security_classification or 'RESTRICTED') %}
+        <tr>
+          <td>
+            <div class="sig-title">{{ a.title }}</div>
+            <div class="sig-ref">{{ a.signal_number or b.originator_number or 'Pending serial' }}</div>
+            <div class="activity-mini"><span class="{{ 'classification-top' if cls=='TOP SECRET' else ('classification-secret' if cls=='SECRET' else ('classification-confidential' if cls=='CONFIDENTIAL' else '')) }}">{{ cls }}</span><span>{{ a.priority or b.priority or 'GREEN' }}</span><span>{{ b.status or 'RELEASED' }}</span></div>
+          </td>
+          <td>
+            <div><b>From:</b> {{ a.from_unit_text or b.msg_from or '—' }}</div>
+            <div class="muted" style="font-size:12px;margin-top:4px;"><b>To:</b> {{ b.msg_to or '—' }}</div>
+            <div class="muted" style="font-size:12px;margin-top:4px;"><b>Released:</b> {{ b.released_at.strftime('%Y-%m-%d %H:%M') if b.released_at else '—' }}</div>
+          </td>
+          <td>
+            <div class="activity-mini"><span>File ref: {{ b.file_reference or a.signal_number or '—' }}</span><span>Fingerprint: {{ b.signature_fingerprint or '—' }}</span></div>
+            <div class="muted" style="font-size:12px;margin-top:6px;">Signed {{ b.signed_at.strftime('%Y-%m-%d %H:%M') if b.signed_at else 'Awaiting signature' }}{% if b.signed_at %} UTC{% endif %}</div>
+          </td>
+          <td>
+            {% if not is_view_only_officer() %}
+            <div class="activity-mini"><span>Read {{ ack.read or 0 }}/{{ ack.total or 0 }}</span><span>Ack {{ ack.acked or 0 }}</span><span>Pending {{ ack.pending or 0 }}</span><span>Printed {{ counts.prints or 0 }}</span><span>Downloaded {{ (counts.downloads or 0) + (a.export_count or 0) }}</span></div>
+            {% else %}
+            <div class="activity-mini"><span>Printed {{ counts.prints or 0 }}</span><span>Downloaded {{ (counts.downloads or 0) + (a.export_count or 0) }}</span></div>
+            {% endif %}
+            {% if counts.last_activity %}<div class="muted" style="font-size:12px;margin-top:6px;">Last activity {{ counts.last_activity.strftime('%Y-%m-%d %H:%M') }}</div>{% endif %}
+          </td>
+          <td>
+            <span class="pill">{{ a.integrity_status or 'PENDING' }}</span>
+            <div class="muted" style="font-size:12px;margin-top:6px;word-break:break-all;">SHA-256: {{ a.sha256 or 'Pending' }}</div>
+          </td>
+          <td>
+            <div class="signal-actions">
+              <a class="btn btn-ghost" href="{{ url_for('msg.broadcast_detail', broadcast_id=a.broadcast_id) }}">Open</a>
+              {% if b.status == 'RECALLED' or b.recalled_at %}
+                <span class="pill" style="border-color:rgba(255,82,99,.55);background:rgba(255,82,99,.12);color:#ff6d7a;font-weight:900;">RECALLED — NO PRINT/DOWNLOAD</span>
+              {% else %}
+                <a class="btn btn-ghost" href="{{ url_for('msg.broadcast_print', broadcast_id=a.broadcast_id, preview=1) }}">Preview</a>
+                <a class="btn" href="{{ url_for('msg.signal_bank_download', archive_id=a.id) }}">Set Password & Download PDF</a>
+              {% endif %}
+            </div>
+          </td>
+        </tr>
+      {% else %}
+        <tr><td colspan="6"><div class="empty">{% if section == 'today' %}No signals have been sent today within your clearance level.{% else %}No archived signals matched this search/filter. Released broadcasts are archived automatically with checksum verification.{% endif %}</div></td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <div class="pager">
+    {% if page > 1 %}<a class="btn btn-ghost" href="{{ url_for('msg.signal_bank', page=page-1, section=section, q=q, classification=classification, priority=priority, integrity=integrity, status=status, unit_id=unit_id, ack=ack_filter, activity=activity_filter, date_from=date_from, date_to=date_to) }}">Previous</a>{% endif %}
+    <span class="muted">Page {{ page }} of {{ pages }}</span>
+    {% if page < pages %}<a class="btn btn-ghost" href="{{ url_for('msg.signal_bank', page=page+1, section=section, q=q, classification=classification, priority=priority, integrity=integrity, status=status, unit_id=unit_id, ack=ack_filter, activity=activity_filter, date_from=date_from, date_to=date_to) }}">Next</a>{% endif %}
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,905 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ title or "NAF Secure Messaging" }}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='app.css') }}">
+  <meta name="csrf-token" content="{{ csrf_token() }}">
+</head>
+<body data-ui-version="world-class-2026" data-user-id="{{ current_user.id if current_user.is_authenticated else '' }}" data-user-role="{{ current_user.role if current_user.is_authenticated else '' }}" data-user-name="{{ current_user.full_name if current_user.is_authenticated else '' }}">
+  <a class="skip-link" href="#mainContent">Skip to main content</a>
+  <div id="appLoader" class="app-loader" aria-hidden="true">
+    <div class="loader-card">
+      <div class="loader-badge">NAF</div>
+      <div class="loader-text">Processing…</div>
+      <div class="loader-bar" role="progressbar" aria-label="Processing">
+        <div class="loader-scan"></div>
+      </div>
+      <div class="loader-sub">Session active • Audit logging enabled</div>
+    </div>
+  </div>
+  
+  <div id="liveToastStack" style="position:fixed; right:18px; top:18px; z-index:9999; display:flex; flex-direction:column; gap:10px;"></div>
+  {% if current_user.is_authenticated %}
+  <div id="sessionTimeoutOverlay" class="session-timeout-overlay" aria-hidden="true">
+    <div class="session-timeout-card" role="dialog" aria-modal="true" aria-labelledby="sessionTimeoutTitle">
+      <div class="session-timeout-icon">⏱</div>
+      <div class="session-timeout-copy">
+        <h2 id="sessionTimeoutTitle">Session Expiring</h2>
+        <p>Your secure session is about to expire due to inactivity.</p>
+        <strong id="sessionTimeoutCountdown">60s</strong>
+      </div>
+      <div class="session-timeout-actions">
+        <button type="button" class="btn" id="sessionExtendBtn">Stay Logged In</button>
+        <a class="btn btn-ghost" href="{{ url_for('auth.logout') }}">Logout</a>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+  <div id="liveOpsPanel" class="live-ops-panel" aria-live="polite">
+    <div class="live-ops-head">
+      <span class="status-dot live"></span> Live Operations
+      <button type="button" id="liveOpsClose" aria-label="Close live operations panel">×</button>
+    </div>
+    <div class="live-ops-grid">
+      <div><b id="liveOnlineCount">0</b><span>online</span></div>
+      <div><b id="livePendingAck">0</b><span>pending ACK</span></div>
+    </div>
+    <div id="liveOpsUsers" class="live-ops-users"></div>
+  </div>
+
+  {% if current_user.is_authenticated %}
+  <div id="commandPalette" class="command-palette" aria-hidden="true">
+    <div class="command-palette-backdrop" data-command-close></div>
+    <section class="command-palette-card" role="dialog" aria-modal="true" aria-labelledby="commandPaletteTitle">
+      <div class="command-search-row">
+        <span class="command-search-icon" aria-hidden="true">⌘</span>
+        <input id="commandSearchInput" type="search" placeholder="Search commands, modules, signals..." autocomplete="off" aria-label="Search commands">
+        <button type="button" class="command-close" data-command-close aria-label="Close command menu">×</button>
+      </div>
+      <h2 id="commandPaletteTitle" class="sr-only">Command menu</h2>
+      <div id="commandPaletteList" class="command-list">
+        <a href="{{ url_for('main.dashboard') }}" data-command-item data-keywords="dashboard command overview home">Dashboard <small>Command overview</small></a>
+        <a href="{{ url_for('main.search') }}" data-command-item data-keywords="search find signal serial dig">Search <small>Find signals and records</small></a>
+        {% if not is_view_only_officer() %}<a href="{{ url_for('msg.broadcasts') }}" data-command-item data-keywords="create signal draft submit release">Create / Review Signal <small>Draft and release workflow</small></a>{% endif %}
+        <a href="{{ url_for('msg.signal_bank') }}" data-command-item data-keywords="archive signal bank verify fingerprint">Signal Bank <small>Secure archive</small></a>
+        <a href="{{ url_for('msg.direct_list') }}" data-command-item data-keywords="direct messages chat communication">Direct Messages <small>Officer messaging</small></a>
+        {% if current_user.unit_id %}<a href="{{ url_for('msg.unit_direct_list') }}" data-command-item data-keywords="unit internal messages officers ao commander chief clerk">Unit Messages <small>Internal unit coordination</small></a>{% endif %}
+        {% if can_manage_unit_officers() %}<a href="{{ url_for('admin.unit_admin_center') }}" data-command-item data-keywords="unit admin ao control center super admin workspace">Unit Admin Center <small>Unit AO control room</small></a><a href="{{ url_for('admin.unit_officers') }}" data-command-item data-keywords="unit users officers chief clerk ao commander signatory">Unit Users <small>Create unit officers and appointments</small></a><a href="{{ url_for('admin.unit_audit') }}" data-command-item data-keywords="unit audit trail accountability workflow officer actions">Unit Audit Trail <small>Unit accountability log</small></a>{% endif %}
+        <a href="{{ url_for('msg.channel_list') }}" data-command-item data-keywords="channels groups distribution">Channels <small>Operational groups</small></a>
+        <a href="{{ url_for('main.notifications') }}" data-command-item data-keywords="notifications alerts ack">Notifications <small>Alerts and acknowledgements</small></a>
+        {% if current_user.role in ['ADMIN','SUPER_ADMIN'] %}
+        <a href="{{ url_for('admin.admin_home') }}" data-command-item data-keywords="admin security control center">Admin Home <small>Control centre</small></a>
+        <a href="{{ url_for('admin.users') }}" data-command-item data-keywords="global users view only officer hq admin">Global Users <small>HQ and view-only accounts</small></a>
+        <a href="{{ url_for('admin.unit_accounts') }}" data-command-item data-keywords="unit accounts workspace login existing units">Unit Accounts <small>Workspace logins linked to units</small></a>
+        <a href="{{ url_for('admin.units') }}" data-command-item data-keywords="units formations organizations">Units <small>NAF unit directory</small></a>
+        <a href="{{ url_for('admin.settings') }}" data-command-item data-keywords="settings platform configuration security">Settings <small>Platform configuration</small></a>
+        {% if current_user.role == 'SUPER_ADMIN' %}<a href="{{ url_for('admin.logs') }}" data-command-item data-keywords="master audit all units all users trail logs">Master Audit Trail <small>All unit and user activity</small></a>{% endif %}
+        {% endif %}
+      </div>
+      <div class="command-help"><span>Enter to open</span><span>Esc to close</span><span>Ctrl/⌘ K</span></div>
+    </section>
+  </div>
+  {% endif %}
+
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <img class="brand-logo-img" src="{{ url_for('static', filename='naf_logo.png') }}" alt="Nigerian Air Force logo">
+        <div>
+          <div class="brand-title">{{ settings_platform_name or 'Messaging System' }}</div>
+          <div class="brand-sub">Secure command platform</div>
+        </div>
+      </div>
+
+      {% if current_user.is_authenticated %}
+      <div class="sidebar-status-card" aria-label="Session and unit status">
+        <span class="status-dot live" aria-hidden="true"></span>
+        <div>
+          <strong>Operational Session</strong>
+          <span>{{ current_user.unit.code if current_user.unit else 'No unit assigned' }} · {{ current_user.role }}</span>
+        </div>
+        <button type="button" class="sidebar-collapse-btn" id="sidebarCollapseBtn" title="Collapse sidebar" aria-label="Collapse sidebar">⇤</button>
+      </div>
+      <nav class="nav" aria-label="Primary navigation">
+        <div class="nav-section">Command</div>
+        <a class="nav-item" href="{{ url_for('main.dashboard') }}"><span class="nav-label"><span class="nav-icon nav-svg" data-icon="circle" aria-hidden="true"></span><span class="nav-text">Dashboard</span></span></a>
+        <a class="nav-item" href="{{ url_for('main.search') }}"><span class="nav-label"><span class="nav-icon nav-svg" data-icon="search" aria-hidden="true"></span><span class="nav-text">Search</span></span></a>
+        <div class="nav-section">Communication</div>
+        <a class="nav-item" href="{{ url_for('msg.channel_list') }}"><span class="nav-label"><span class="nav-icon nav-svg" data-icon="network" aria-hidden="true"></span><span class="nav-text">Channels</span></span></a>
+        <a class="nav-item" href="{{ url_for('main.notifications') }}">
+          <span class="nav-label"><span class="nav-icon nav-svg" data-icon="bell" aria-hidden="true"></span><span class="nav-text">Notifications</span></span>
+          <span id="badge-notif" class="badge" style="{% if not unread_notification_count or unread_notification_count==0 %}display:none{% endif %}">{{ unread_notification_count or '' }}</span>
+        </a>
+        <a class="nav-item" href="{{ url_for('msg.direct_list') }}">
+          <span class="nav-label"><span class="nav-icon nav-svg" data-icon="message-circle" aria-hidden="true"></span><span class="nav-text">Direct Messages</span></span>
+          <span id="badge-direct" class="badge" style="{% if not unread_direct_count or unread_direct_count==0 %}display:none{% endif %}">{{ unread_direct_count or '' }}</span>
+        </a>
+        {% if not is_view_only_officer() %}
+        <a class="nav-item" href="{{ url_for('msg.broadcasts') }}">
+          <span class="nav-label"><span class="nav-icon nav-svg" data-icon="radio" aria-hidden="true"></span><span class="nav-text">{{ 'Create / Review Signals' if can_create_signal() else 'Signals / Broadcasts' }}</span></span>
+          <span id="badge-broadcast" class="badge" style="{% if not unread_broadcast_count or unread_broadcast_count==0 %}display:none{% endif %}">{{ unread_broadcast_count or '' }}</span>
+        </a>
+        {% if current_user.unit_id or current_user.role in ["ADMIN","SUPER_ADMIN"] %}
+        <a class="nav-item" href="{{ url_for('msg.unit_workflow_center') }}"><span class="nav-label"><span class="nav-icon nav-svg" data-icon="git-branch" aria-hidden="true"></span><span class="nav-text">Unit Workflow</span></span><span id="badge-unit-workflow" class="badge" style="{% if not unit_workflow_count or unit_workflow_count==0 %}display:none{% endif %}">{{ unit_workflow_count or '' }}</span></a>
+        {% endif %}
+        {% endif %}
+        <div class="nav-section">Archive</div>
+        <a class="nav-item" href="{{ url_for('msg.signal_bank') }}"><span class="nav-label"><span class="nav-icon nav-svg" data-icon="archive" aria-hidden="true"></span><span class="nav-text">Signal Bank</span></span></a>
+        <a class="nav-item" href="{{ url_for('main.account') }}"><span class="nav-label"><span class="nav-icon nav-svg" data-icon="user-circle" aria-hidden="true"></span><span class="nav-text">My Account</span></span></a>
+        {% if can_manage_unit_officers() %}
+        <a class="nav-item" href="{{ url_for('admin.unit_admin_center') }}"><span class="nav-label"><span class="nav-icon nav-svg" data-icon="shield-check" aria-hidden="true"></span><span class="nav-text">Unit Admin</span></span></a>
+        <a class="nav-item" href="{{ url_for('admin.unit_officers') }}"><span class="nav-label"><span class="nav-icon nav-svg" data-icon="users" aria-hidden="true"></span><span class="nav-text">Unit Users</span></span></a>
+        <a class="nav-item" href="{{ url_for('admin.unit_audit') }}"><span class="nav-label"><span class="nav-icon nav-svg" data-icon="clipboard-list" aria-hidden="true"></span><span class="nav-text">Unit Audit Trail</span></span></a>
+        {% endif %}
+        {% if current_user.role in ["ADMIN","SUPER_ADMIN"] %}
+        <div class="nav-section">Control</div>
+        <a class="nav-item" href="{{ url_for('admin.admin_home') }}"><span class="nav-label"><span class="nav-icon nav-svg" data-icon="layout-dashboard" aria-hidden="true"></span><span class="nav-text">Admin Home</span></span></a>
+        <a class="nav-item" href="{{ url_for('admin.users') }}"><span class="nav-label"><span class="nav-icon nav-svg" data-icon="users" aria-hidden="true"></span><span class="nav-text">Global Users</span></span></a>
+        <a class="nav-item" href="{{ url_for('admin.unit_accounts') }}"><span class="nav-label"><span class="nav-icon nav-svg" data-icon="building-2" aria-hidden="true"></span><span class="nav-text">Unit Accounts</span></span></a>
+        <a class="nav-item" href="{{ url_for('admin.units') }}"><span class="nav-label"><span class="nav-icon nav-svg" data-icon="building-2" aria-hidden="true"></span><span class="nav-text">Units</span></span></a>
+        <a class="nav-item" href="{{ url_for('admin.channels') }}"><span class="nav-label"><span class="nav-icon nav-svg" data-icon="network" aria-hidden="true"></span><span class="nav-text">Channels</span></span></a>
+        <a class="nav-item" href="{{ url_for('admin.broadcasts_admin') }}"><span class="nav-label"><span class="nav-icon nav-svg" data-icon="radio" aria-hidden="true"></span><span class="nav-text">Signals / Broadcasts</span></span></a>
+        <a class="nav-item" href="{{ url_for('admin.settings') }}"><span class="nav-label"><span class="nav-icon nav-svg" data-icon="settings" aria-hidden="true"></span><span class="nav-text">Settings</span></span></a>
+        {% if current_user.role == "SUPER_ADMIN" %}
+        <a class="nav-item" href="{{ url_for('admin.logs') }}"><span class="nav-label"><span class="nav-icon nav-svg" data-icon="clipboard-list" aria-hidden="true"></span><span class="nav-text">Master Audit Trail</span></span></a>
+        <a class="nav-item" href="{{ url_for('admin.system_logs') }}"><span class="nav-label"><span class="nav-icon nav-svg" data-icon="terminal" aria-hidden="true"></span><span class="nav-text">Server Logs</span></span></a>
+        {% endif %}
+        {% endif %}
+      </nav>
+      <div class="sidebar-footer">
+        <div class="user-chip">
+          <div class="user-name">{{ current_user.full_name }}</div>
+          <div class="user-meta">{{ current_user.service_number }}{% if current_user.rank %} · {{ current_user.rank }}{% endif %} · {{ current_user.role }}</div>
+        </div>
+        <a class="btn btn-ghost" href="{{ url_for('auth.logout') }}">Logout</a>
+      </div>
+      {% else %}
+      <div class="sidebar-footer">
+        <a class="btn" href="{{ url_for('auth.login') }}">Login</a>
+      </div>
+      {% endif %}
+    </aside>
+
+    <main class="main" id="mainContent" tabindex="-1">
+      <div class="topbar">
+        <button class="icon-btn" id="sidebarToggle" aria-label="Toggle menu">☰</button>
+        <div class="topbar-title">{{ settings_platform_name or 'Secure Comms' }}</div>
+        <div class="topbar-actions">
+          {% if current_user.is_authenticated %}<button class="icon-btn command-open-btn" id="commandOpenBtn" title="Open command menu" aria-label="Open command menu">⌘K</button>{% endif %}
+          <button class="icon-btn" id="themeToggle" title="Toggle theme" aria-label="Toggle theme">◐</button>
+        </div>
+        {% if current_user.is_authenticated %}
+          <div class="topbar-user">{{ current_user.full_name }}{% if current_user.rank %} · {{ current_user.rank }}{% endif %}</div>
+        {% endif %}
+      </div>
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          <section class="system-feedback-stack" aria-live="polite" aria-label="System feedback">
+            {% for category, message in messages %}
+              {% set cat = category if category in ['success','danger','warning','info','security','operational'] else 'info' %}
+              {% set label = 'Action Completed' if cat == 'success' else ('Action Required' if cat == 'danger' else ('Security Notice' if cat == 'security' else ('Operational Notice' if cat == 'operational' else ('Caution' if cat == 'warning' else 'System Notice')))) %}
+              {% set icon = '✓' if cat == 'success' else ('!' if cat == 'danger' else ('⚠' if cat == 'warning' else ('◆' if cat == 'security' else ('●' if cat == 'operational' else 'i')))) %}
+              <article class="system-feedback feedback-{{ cat }}" role="alert" data-feedback-category="{{ cat }}">
+                <div class="feedback-icon" aria-hidden="true">{{ icon }}</div>
+                <div class="feedback-copy">
+                  <strong>{{ label }}</strong>
+                  <span>{{ message }}</span>
+                </div>
+                <button type="button" class="feedback-close" aria-label="Dismiss message">×</button>
+              </article>
+            {% endfor %}
+          </section>
+        {% endif %}
+      {% endwith %}
+
+
+      {% if current_user.is_authenticated %}
+      <div class="command-strip" role="status" aria-label="Operational status">
+        <div class="command-strip-item"><span class="status-dot live"></span><span>LIVE NET</span></div>
+        <div class="command-strip-item"><span class="status-dot secure"></span><span>SECURE SESSION</span></div>
+        <div class="command-strip-item"><span class="status-dot"></span><span>{{ current_user.unit.code if current_user.unit else 'NO UNIT' }}</span></div>
+        {% if not is_view_only_officer() %}
+        <div class="command-strip-item hide-sm"><span class="status-dot warning"></span><span>ACK: {{ unread_broadcast_count or 0 }}</span></div>
+        {% else %}
+        <span class="command-strip-link">View-only access</span>
+        {% endif %}
+      </div>
+      {% endif %}
+
+      <div class="page">
+        {% block content %}{% endblock %}
+      </div>
+    </main>
+  </div>
+  {% if current_user.is_authenticated %}
+  <nav class="mobile-bottom-nav" aria-label="Mobile quick navigation">
+    <a href="{{ url_for('main.dashboard') }}">⌂<span>Home</span></a>
+    {% if not is_view_only_officer() %}<a href="{{ url_for('msg.broadcasts') }}">✚<span>Signal</span></a>{% endif %}
+    <a href="{{ url_for('msg.signal_bank') }}">▣<span>Bank</span></a>
+    <a href="{{ url_for('msg.direct_list') }}">✉<span>DM</span></a>
+    <button type="button" data-command-trigger>⌘<span>Search</span></button>
+  </nav>
+  {% endif %}
+
+  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+  <script>
+    (function(){
+      const tokenEl = document.querySelector('meta[name="csrf-token"]');
+      const token = tokenEl ? tokenEl.getAttribute("content") : "";
+      const originalFetch = window.fetch;
+      window.fetch = function(input, init){
+        init = init || {};
+        const method = (init.method || "GET").toUpperCase();
+        if(token && !["GET","HEAD","OPTIONS","TRACE"].includes(method)){
+          init.headers = new Headers(init.headers || {});
+          init.headers.set("X-CSRFToken", token);
+        }
+        return originalFetch(input, init);
+      };
+    })();
+
+    // Mobile sidebar toggle
+    (function(){
+      const btn = document.getElementById('sidebarToggle');
+      if(!btn) return;
+      btn.addEventListener('click', () => {
+        if(window.matchMedia('(max-width: 1000px)').matches){
+          document.body.classList.toggle('sidebar-open');
+          document.body.classList.remove('sidebar-collapsed');
+        } else {
+          document.body.classList.toggle('sidebar-collapsed');
+          document.body.classList.remove('sidebar-open');
+        }
+      });
+      document.addEventListener('click', (e) => {
+        if(!document.body.classList.contains('sidebar-open')) return;
+        const sidebar = document.querySelector('.sidebar');
+        const toggle = document.getElementById('sidebarToggle');
+        if(sidebar && (sidebar.contains(e.target) || toggle.contains(e.target))) return;
+        document.body.classList.remove('sidebar-open');
+      });
+      window.addEventListener('resize', () => {
+        if(!window.matchMedia('(max-width: 1000px)').matches){
+          document.body.classList.remove('sidebar-open');
+        }
+      });
+    })();
+
+    // Sidebar collapse button inside the premium sidebar
+    (function(){
+      const btn = document.getElementById('sidebarCollapseBtn');
+      if(!btn) return;
+      btn.addEventListener('click', function(){
+        if(window.matchMedia('(max-width: 1000px)').matches){
+          document.body.classList.toggle('sidebar-open');
+        } else {
+          document.body.classList.toggle('sidebar-collapsed');
+          document.body.classList.remove('sidebar-open');
+        }
+      });
+    })();
+
+    // Active nav highlight
+    (function(){
+      const path = window.location.pathname;
+      document.querySelectorAll('.sidebar a.nav-item').forEach(a => {
+        const href = a.getAttribute('href');
+        if(!href) return;
+        // exact match, or prefix match for sections
+        if(path === href || (href.length > 1 && path.startsWith(href + '/'))){
+          a.classList.add('active');
+        }
+      });
+    })();
+
+    // Global real-time socket (used for badges + live message updates)
+    window.NAF_SOCKET = io();
+    // Let page-level scripts that loaded before this base script bind safely.
+    window.dispatchEvent(new CustomEvent('naf:socket-ready', { detail: { socket: window.NAF_SOCKET } }));
+
+    function setBadge(id, n){
+      const el = document.getElementById(id);
+      if(!el) return;
+      if(n && n > 0){ el.textContent = n; el.style.display = "inline-flex"; }
+      else { el.textContent = ""; el.style.display = "none"; }
+    }
+
+    function escapeHtml(value){
+      return String(value || '').replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    }
+
+    function showToast(title, body, href, category){
+      const stack = document.getElementById("liveToastStack");
+      if(!stack) return;
+      const item = document.createElement(href ? "a" : "div");
+      if(href) item.href = href;
+      const cat = category || 'operational';
+      item.className = `premium-toast system-feedback feedback-${cat}`;
+      item.innerHTML = `
+        <div class="feedback-icon" aria-hidden="true">${cat === 'success' ? '✓' : (cat === 'danger' ? '!' : '●')}</div>
+        <div class="feedback-copy"><strong>${escapeHtml(title || 'Notification')}</strong><span>${escapeHtml(body || '')}</span></div>
+        <button type="button" class="feedback-close" aria-label="Dismiss message">×</button>`;
+      const close = item.querySelector('.feedback-close');
+      close.addEventListener('click', (e) => { e.preventDefault(); item.remove(); });
+      stack.appendChild(item);
+      setTimeout(() => { item.style.opacity = '0'; item.style.transform = 'translateY(-4px)'; item.style.transition = 'all .25s ease'; }, 5200);
+      setTimeout(() => item.remove(), 5550);
+    }
+
+    window.showToast = showToast;
+
+    document.addEventListener('click', function(e){
+      const close = e.target.closest('.feedback-close');
+      if(close){
+        const item = close.closest('.system-feedback');
+        if(item) item.remove();
+      }
+    });
+
+    function showBrowserNotification(title, body, href){
+      try{
+        if(!("Notification" in window)) return;
+        if(Notification.permission === "default"){ Notification.requestPermission().catch(()=>{}); return; }
+        if(Notification.permission !== "granted") return;
+        const n = new Notification(title || "NAF Secure Messaging", { body: body || "" });
+        if(href){ n.onclick = () => { try{ window.focus(); }catch(e){} window.location.href = href; }; }
+      }catch(e){}
+    }
+
+    // Initialize badge counts from server
+    window.NAF_SOCKET.on("badge_counts", (c) => {
+      if(!c) return;
+      setBadge("badge-direct", c.unread_direct || 0);
+      setBadge("badge-broadcast", c.unread_broadcast || 0);
+    });
+
+    // Increment badges when we receive new items
+    window.NAF_SOCKET.on("direct_message", (msg) => {
+      try{
+        const me = parseInt(document.body.dataset.userId || "0");
+        if(me && msg.recipient_id === me && msg.sender_id !== me){
+          const cur = parseInt((document.getElementById("badge-direct")?.textContent || "0") || "0");
+          setBadge("badge-direct", cur + 1);
+          const title = msg.sender_name ? `Direct message from ${msg.sender_name}` : "New direct message";
+          const body = (msg.body || "").toString().slice(0, 120);
+          showToast(title, body, msg.link || null, "operational");
+          if(document.hidden) showBrowserNotification(title, body, msg.link || null);
+        }
+      }catch(e){}
+    });
+
+    window.NAF_SOCKET.on("broadcast_new", (b) => {
+      try{
+        const cur = parseInt((document.getElementById("badge-broadcast")?.textContent || "0") || "0");
+        setBadge("badge-broadcast", cur + 1);
+        const role = (document.body.dataset.userRole || "").toUpperCase();
+        const suppressLoudAdminToast = ["ADMIN", "SUPER_ADMIN"].includes(role);
+        const notifTitle = "New signal received";
+        const notifBody = `${b.originator_number || ""} ${b.title || ""}`.trim();
+        if(!suppressLoudAdminToast){
+          showToast(notifTitle, notifBody, b.link || null);
+          if(document.hidden) showBrowserNotification(notifTitle, notifBody, b.link || null);
+        }
+      }catch(e){}
+    });
+
+
+
+    window.NAF_SOCKET.on("notification", (n) => {
+      try{
+        const cur = parseInt((document.getElementById("badge-notif")?.textContent || "0") || "0");
+        setBadge("badge-notif", cur + 1);
+        if(n){
+          const type = (n.type || "").toString().toUpperCase();
+          const role = (document.body.dataset.userRole || "").toUpperCase();
+          // Direct messages already have their own temporary popup.
+          // Admin/Super Admin should not get noisy operational popups for every user activity.
+          const quiet = type === "DIRECT_MESSAGE" || (["ADMIN", "SUPER_ADMIN"].includes(role) && ["BROADCAST_RECEIPT", "BROADCAST_ACK", "DIRECT_MESSAGE"].includes(type));
+          if(!quiet){
+            showToast(n.title || "New notification", n.body || "", n.link || null);
+            if(document.hidden) showBrowserNotification(n.title || "New notification", n.body || "", n.link || null);
+          }
+        }
+      }catch(e){}
+    });
+    window.NAF_SOCKET.on("broadcast_escalated", () => {
+      // Escalations are treated as broadcasts for attention
+      try{
+        const cur = parseInt((document.getElementById("badge-broadcast")?.textContent || "0") || "0");
+        setBadge("badge-broadcast", cur + 1);
+      }catch(e){}
+    });
+
+
+    // Global presence marker updater for Direct Messaging screens.
+    // Default state is amber/offline; presence_update turns active users green.
+    window.NAF_ONLINE_USERS = new Set();
+    function updatePresenceMarkers(payload){
+      try{
+        const online = new Set((payload && payload.users ? payload.users : []).map(u => parseInt(u.user_id)).filter(Boolean));
+        window.NAF_ONLINE_USERS = online;
+        document.querySelectorAll('[data-presence-user-id]').forEach(card => {
+          const uid = parseInt(card.getAttribute('data-presence-user-id') || '0');
+          const isOnline = online.has(uid);
+          card.classList.toggle('is-online', isOnline);
+          card.classList.toggle('is-offline', !isOnline);
+          card.querySelectorAll('.presence-dot').forEach(dot => {
+            dot.classList.toggle('online', isOnline);
+            dot.classList.toggle('offline', !isOnline);
+            dot.title = isOnline ? 'Online' : 'Offline';
+          });
+          card.querySelectorAll('[data-presence-label]').forEach(label => {
+            label.textContent = isOnline ? 'Online' : 'Offline';
+          });
+          card.querySelectorAll('.live-pulse').forEach(pulse => {
+            pulse.classList.toggle('amber', !isOnline);
+          });
+        });
+      }catch(e){}
+    }
+
+    // Phase 3: global live operations panel, presence and metrics
+    (function(){
+      const panel = document.getElementById("liveOpsPanel");
+      const close = document.getElementById("liveOpsClose");
+      if(close && panel){ close.addEventListener("click", () => panel.classList.toggle("collapsed")); }
+      function setText(id, v){ const el = document.getElementById(id); if(el) el.textContent = v; }
+      window.NAF_SOCKET.on("presence_update", (p) => {
+        if(!p) return;
+        updatePresenceMarkers(p);
+        setText("liveOnlineCount", p.count || 0);
+        const box = document.getElementById("liveOpsUsers");
+        if(box){
+          box.innerHTML = (p.users || []).slice(0,6).map(u => `<div class="live-user"><span class="status-dot live"></span><span>${u.rank ? u.rank + ' ' : ''}${u.name || 'User'}</span><small>${u.unit || u.role || ''}</small></div>`).join('');
+        }
+      });
+      window.NAF_SOCKET.on("realtime_metrics", (m) => {
+        if(!m) return;
+        setText("livePendingAck", m.pending_ack_signals || 0);
+        document.querySelectorAll('[data-live-metric="released_signals"]').forEach(el => el.textContent = m.released_signals ?? el.textContent);
+        document.querySelectorAll('[data-live-metric="pending_workflow"]').forEach(el => el.textContent = m.pending_workflow ?? el.textContent);
+        document.querySelectorAll('[data-live-metric="online_users"]').forEach(el => el.textContent = m.online_users ?? el.textContent);
+      });
+      window.NAF_SOCKET.on("broadcast_receipt_update", (r) => {
+        if(!r) return;
+        // Keep command-centre metrics live without disturbing the admin screen with popups.
+        setText("livePendingAck", r.pending_ack_signals ?? document.getElementById("livePendingAck")?.textContent ?? 0);
+      });
+      window.NAF_SOCKET.on("broadcast_ack_update", (r) => {
+        if(!r) return;
+        // Silent update only. Acknowledgement activity belongs in the live panel/logs, not toast spam.
+        setText("livePendingAck", r.pending_ack_signals ?? document.getElementById("livePendingAck")?.textContent ?? 0);
+      });
+      window.NAF_SOCKET.on("broadcast_new", (b) => {
+        if(!b) return;
+        const priority = (b.precedence_action || b.priority || '').toString().toUpperCase();
+        if(["FLASH","IMMEDIATE","RED"].includes(priority)){
+          document.body.classList.add("urgent-pulse");
+          setTimeout(()=>document.body.classList.remove("urgent-pulse"), 2200);
+        }
+      });
+      setInterval(() => { try{ window.NAF_SOCKET.emit("request_realtime_metrics"); }catch(e){} }, 30000);
+    })();
+
+  </script>
+
+
+  <script>
+    // NAF_UI_BOOT: loader + theme + micro-interactions
+    (function(){
+      const loader = document.getElementById("appLoader");
+
+      function showLoader(){
+        if(!loader) return;
+        loader.classList.add("show");
+        loader.setAttribute("aria-hidden","false");
+      }
+      function hideLoader(){
+        if(!loader) return;
+        loader.classList.remove("show");
+        loader.setAttribute("aria-hidden","true");
+      }
+      window.NAF_SHOW_LOADER = showLoader;
+      window.NAF_HIDE_LOADER = hideLoader;
+
+      // Heavy processing overlay is reserved for official signal processing only.
+      // Normal navigation, direct messages, filters, account changes, and admin actions must not show it.
+      function isSignalProcessingForm(form){
+        return form && (form.hasAttribute("data-signal-processing") || form.dataset.signalProcessing === "true");
+      }
+      document.addEventListener("submit", (e) => {
+        const form = e.target;
+        if(!(form instanceof HTMLFormElement)) return;
+        if(form.hasAttribute("data-no-loader")) return;
+        if(!isSignalProcessingForm(form)) return;
+        showLoader();
+      }, true);
+
+      // Do not show the heavy overlay on ordinary links. Use only explicit signal-processing links if ever needed.
+      document.addEventListener("click", (e) => {
+        const a = e.target.closest && e.target.closest("a");
+        if(!a) return;
+        if(!a.hasAttribute("data-signal-processing")) return;
+        if(a.target === "_blank" || a.hasAttribute("download") || a.hasAttribute("data-no-loader")) return;
+        const href = a.getAttribute("href") || "";
+        if(!href || href.startsWith("#") || href.startsWith("mailto:") || href.startsWith("tel:")) return;
+        if(e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+        showLoader();
+      }, true);
+
+      // Auto-hide loader on load + back/forward cache restore
+      window.addEventListener("load", () => hideLoader());
+      window.addEventListener("pageshow", () => hideLoader());
+
+      // Theme toggle (light/dark) stored in localStorage
+      const themeBtn = document.getElementById("themeToggle");
+      function applyTheme(t){
+        document.documentElement.dataset.theme = t;
+        document.body.classList.toggle("dark", t === "dark");
+        const btn = document.getElementById("themeToggle");
+        if(btn){ btn.textContent = t === "dark" ? "☀" : "◐"; btn.setAttribute("aria-pressed", t === "dark" ? "true" : "false"); }
+        try{ localStorage.setItem("naf_theme", t); }catch(e){}
+      }
+      function initTheme(){
+        let t = "light";
+        try{ t = localStorage.getItem("naf_theme") || "light"; }catch(e){}
+        applyTheme(t);
+      }
+      if(themeBtn){
+        initTheme();
+        themeBtn.addEventListener("click", () => {
+          const cur = document.documentElement.dataset.theme || "dark";
+          applyTheme(cur === "dark" ? "light" : "dark");
+        });
+      } else {
+        initTheme();
+      }
+    })();
+  
+      // Generic client-side list/table filtering: add an input with data-filter="#selector"
+      // and mark items/rows with data-filter-item and optional data-filter-text override.
+      (function(){
+        const inputs = document.querySelectorAll("[data-filter]");
+        inputs.forEach(inp=>{
+          const sel = inp.getAttribute("data-filter");
+          const scope = document.querySelector(sel);
+          if(!scope) return;
+          const items = scope.querySelectorAll("[data-filter-item]");
+          const norm = s => (s||"").toString().toLowerCase().trim();
+          const apply = () => {
+            const q = norm(inp.value);
+            items.forEach(el=>{
+              const t = norm(el.getAttribute("data-filter-text") || el.textContent);
+              el.style.display = (!q || t.includes(q)) ? "" : "none";
+            });
+          };
+          inp.addEventListener("input", apply);
+          apply();
+        });
+        // Chip filters: elements with data-chip-group and chips with data-chip-value
+        document.querySelectorAll("[data-chip-group]").forEach(group=>{
+          const chips = group.querySelectorAll("[data-chip]");
+          const targetSel = group.getAttribute("data-chip-target");
+          const target = targetSel ? document.querySelector(targetSel) : null;
+          if(!target) return;
+          const items = target.querySelectorAll("[data-chip-item]");
+          const setActive = (val) => {
+            chips.forEach(c=>c.classList.toggle("active", c.getAttribute("data-chip-value")===val));
+            items.forEach(it=>{
+              const v = it.getAttribute("data-chip-item") || "";
+              it.style.display = (val==="all" || v===val) ? "" : "none";
+            });
+          };
+          chips.forEach(c=>c.addEventListener("click", ()=>setActive(c.getAttribute("data-chip-value")||"all")));
+          setActive("all");
+        });
+      })();
+</script>
+
+
+<script>
+  // NMS_ICON_AND_RESPONSIVE_POLISH: consistent SVG icons + mobile-friendly controls
+  (function(){
+    const icons = {
+      "home": '<svg viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5V21a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1v-10.5Z"/></svg>',
+      "layout-dashboard": '<svg viewBox="0 0 24 24"><rect x="3" y="3" width="8" height="8" rx="2"/><rect x="13" y="3" width="8" height="5" rx="2"/><rect x="13" y="10" width="8" height="11" rx="2"/><rect x="3" y="13" width="8" height="8" rx="2"/></svg>',
+      "bell": '<svg viewBox="0 0 24 24"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9Z"/><path d="M10 21h4"/></svg>',
+      "message-circle": '<svg viewBox="0 0 24 24"><path d="M21 11.5a8.5 8.5 0 0 1-12.6 7.4L3 21l2.1-5.2A8.5 8.5 0 1 1 21 11.5Z"/></svg>',
+      "radio": '<svg viewBox="0 0 24 24"><path d="M4.9 19.1a10 10 0 0 1 0-14.2"/><path d="M7.8 16.2a6 6 0 0 1 0-8.4"/><circle cx="12" cy="12" r="2"/><path d="M16.2 7.8a6 6 0 0 1 0 8.4"/><path d="M19.1 4.9a10 10 0 0 1 0 14.2"/></svg>',
+      "archive": '<svg viewBox="0 0 24 24"><path d="M4 7h16"/><path d="M5 7v13h14V7"/><path d="M3 3h18v4H3z"/><path d="M10 12h4"/></svg>',
+      "user-circle": '<svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>',
+      "users": '<svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>',
+      "building-2": '<svg viewBox="0 0 24 24"><path d="M6 22V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v18"/><path d="M4 22h16"/><path d="M9 7h1M14 7h1M9 11h1M14 11h1M9 15h1M14 15h1"/></svg>',
+      "network": '<svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="7" rx="2"/><rect x="8.5" y="14" width="7" height="7" rx="2"/><path d="M10 7h4M7 10v2.5L12 14l5-1.5V10"/></svg>',
+      "settings": '<svg viewBox="0 0 24 24"><path d="M12 15.5A3.5 3.5 0 1 0 12 8a3.5 3.5 0 0 0 0 7.5Z"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06A1.7 1.7 0 0 0 15 19.4a1.7 1.7 0 0 0-1 .6V20a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-.6 1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-.6-1H4a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 .6-1 1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-.6V4a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 .6 1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.4 9c.1.36.3.7.6 1h.1a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-.6 1Z"/></svg>',
+      "clipboard-list": '<svg viewBox="0 0 24 24"><path d="M9 5h6"/><path d="M9 3h6v4H9z"/><path d="M7 5H5a2 2 0 0 0-2 2v13h18V7a2 2 0 0 0-2-2h-2"/><path d="M8 12h8M8 16h8"/></svg>',
+      "terminal": '<svg viewBox="0 0 24 24"><path d="m4 17 5-5-5-5"/><path d="M12 19h8"/></svg>',
+      "search": '<svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>',
+      "shield": '<svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/><path d="m9 12 2 2 4-5"/></svg>',
+      "circle": '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="7"/></svg>',
+      "print": '<svg viewBox="0 0 24 24"><path d="M6 9V3h12v6"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 14h12v7H6z"/></svg>',
+      "download": '<svg viewBox="0 0 24 24"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>',
+      "upload": '<svg viewBox="0 0 24 24"><path d="M12 21V9"/><path d="m7 14 5-5 5 5"/><path d="M5 3h14"/></svg>',
+      "save": '<svg viewBox="0 0 24 24"><path d="M5 3h14l2 2v16H3V5l2-2Z"/><path d="M7 3v7h10V3"/><path d="M7 21v-7h10v7"/></svg>',
+      "send": '<svg viewBox="0 0 24 24"><path d="M22 2 11 13"/><path d="m22 2-7 20-4-9-9-4 20-7Z"/></svg>',
+      "plus": '<svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>',
+      "edit": '<svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5Z"/></svg>',
+      "trash": '<svg viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M6 6l1 15h10l1-15"/></svg>',
+      "lock": '<svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>',
+      "unlock": '<svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 7.5-2"/></svg>',
+      "eye": '<svg viewBox="0 0 24 24"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>',
+      "x": '<svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg>'
+    };
+    document.querySelectorAll('.nav-svg[data-icon]').forEach(el => {
+      const name = el.getAttribute('data-icon') || 'circle';
+      el.innerHTML = icons[name] || icons.circle;
+    });
+    function chooseIcon(text){
+      const t = (text || '').trim().toLowerCase();
+      if(!t) return null;
+      if(t.includes('print')) return 'print';
+      if(t.includes('download') || t.includes('export') || t.includes('csv')) return 'download';
+      if(t.includes('upload') || t.includes('import')) return 'upload';
+      if(t.includes('save') || t.includes('update')) return 'save';
+      if(t.includes('send') || t.includes('release') || t.includes('submit')) return 'send';
+      if(t.includes('create') || t.includes('add') || t.includes('new')) return 'plus';
+      if(t.includes('edit')) return 'edit';
+      if(t.includes('delete') || t.includes('remove')) return 'trash';
+      if(t.includes('lock')) return t.includes('unlock') ? 'unlock' : 'lock';
+      if(t.includes('view') || t.includes('preview') || t.includes('open')) return 'eye';
+      if(t.includes('cancel') || t.includes('reject')) return 'x';
+      if(t.includes('login') || t.includes('account')) return 'user-circle';
+      if(t.includes('logout')) return 'lock';
+      if(t.includes('search') || t.includes('filter')) return 'search';
+      return null;
+    }
+    document.querySelectorAll('a.btn, button.btn, .btn-primary, button[type="submit"]').forEach(btn => {
+      if(btn.querySelector('.btn-icon-svg')) return;
+      const iconName = btn.getAttribute('data-icon') || chooseIcon(btn.textContent);
+      if(!iconName || !icons[iconName]) return;
+      const span = document.createElement('span');
+      span.className = 'btn-icon-svg';
+      span.setAttribute('aria-hidden','true');
+      span.innerHTML = icons[iconName];
+      btn.prepend(span);
+      btn.classList.add('btn-with-icon');
+    });
+  })();
+</script>
+
+{% if current_user.is_authenticated %}
+<script>
+  // SESSION_TIMEOUT_CONTROL: auto logout after inactivity with warning prompt.
+  (function(){
+    const timeoutSeconds = Number({{ session_timeout_seconds|default(3600) }});
+    const warningSeconds = Number({{ session_warning_seconds|default(60) }});
+    if(!timeoutSeconds || timeoutSeconds < 60) return;
+
+    const overlay = document.getElementById('sessionTimeoutOverlay');
+    const countdownEl = document.getElementById('sessionTimeoutCountdown');
+    const extendBtn = document.getElementById('sessionExtendBtn');
+    const csrf = (document.querySelector('meta[name="csrf-token"]') || {}).content || '';
+    let lastActivity = Date.now();
+    let warningOpen = false;
+    let expired = false;
+    let countdownTimer = null;
+
+    function resetActivity(){
+      if(expired) return;
+      lastActivity = Date.now();
+      if(warningOpen) hideWarning();
+    }
+    function showWarning(remaining){
+      if(!overlay) return;
+      warningOpen = true;
+      overlay.classList.add('show');
+      overlay.setAttribute('aria-hidden','false');
+      updateCountdown(remaining);
+    }
+    function hideWarning(){
+      warningOpen = false;
+      if(overlay){
+        overlay.classList.remove('show');
+        overlay.setAttribute('aria-hidden','true');
+      }
+    }
+    function updateCountdown(seconds){
+      if(countdownEl) countdownEl.textContent = Math.max(0, Math.ceil(seconds)) + 's';
+    }
+    async function keepAlive(){
+      try{
+        const res = await fetch('{{ url_for("auth.session_keepalive") }}', {
+          method: 'POST',
+          headers: {'X-CSRFToken': csrf, 'Accept':'application/json'}
+        });
+        if(!res.ok) throw new Error('keepalive failed');
+        resetActivity();
+        hideWarning();
+        if(window.showToast){ window.showToast('Session Extended', 'Your secure session remains active.', null, 'success'); }
+      }catch(e){
+        expireNow();
+      }
+    }
+    async function expireNow(){
+      if(expired) return;
+      expired = true;
+      try{
+        const res = await fetch('{{ url_for("auth.session_expired_logout") }}', {
+          method: 'POST',
+          headers: {'X-CSRFToken': csrf, 'Accept':'application/json'}
+        });
+        const data = await res.json().catch(()=>({}));
+        window.location.href = data.redirect || '{{ url_for("auth.login") }}?expired=1';
+      }catch(e){
+        window.location.href = '{{ url_for("auth.login") }}?expired=1';
+      }
+    }
+    function tick(){
+      const idleSeconds = (Date.now() - lastActivity) / 1000;
+      const remaining = timeoutSeconds - idleSeconds;
+      if(remaining <= 0){
+        expireNow();
+        return;
+      }
+      if(remaining <= warningSeconds){
+        showWarning(remaining);
+      } else if(warningOpen){
+        hideWarning();
+      }
+    }
+
+    ['mousemove','mousedown','keydown','touchstart','scroll','click'].forEach(evt => {
+      document.addEventListener(evt, resetActivity, {passive:true});
+    });
+    if(extendBtn) extendBtn.addEventListener('click', keepAlive);
+    countdownTimer = window.setInterval(tick, 1000);
+    window.addEventListener('beforeunload', () => { if(countdownTimer) clearInterval(countdownTimer); });
+  })();
+</script>
+{% endif %}
+
+{% block scripts %}{% endblock %}
+{% block extra_scripts %}{% endblock %}
+
+<script>
+  // NMS_FULL_UI_QA_SWEEP: icon safety net and visual sanity helpers.
+  (function(){
+    const genericSvg = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>';
+    const eyeSvg = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>';
+    const downloadSvg = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>';
+    const printSvg = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9V3h12v6"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 14h12v7H6z"/></svg>';
+    const sendSvg = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M22 2 11 13"/><path d="m22 2-7 20-4-9-9-4 20-7Z"/></svg>';
+    function pick(text){
+      text=(text||'').toLowerCase();
+      if(text.includes('print')) return printSvg;
+      if(text.includes('download')||text.includes('export')||text.includes('csv')) return downloadSvg;
+      if(text.includes('view')||text.includes('open')||text.includes('preview')) return eyeSvg;
+      if(text.includes('send')||text.includes('submit')||text.includes('release')) return sendSvg;
+      return genericSvg;
+    }
+    document.querySelectorAll('.nav-svg').forEach(function(el){
+      if(!el.innerHTML.trim()){ el.innerHTML = genericSvg; }
+    });
+    document.querySelectorAll('a.btn,button.btn,.btn-primary,button[type="submit"]').forEach(function(btn){
+      if(btn.querySelector('.btn-icon-svg')) return;
+      if((btn.textContent||'').trim().length < 1) return;
+      const span=document.createElement('span');
+      span.className='btn-icon-svg';
+      span.setAttribute('aria-hidden','true');
+      span.innerHTML=pick(btn.textContent);
+      btn.prepend(span);
+      btn.classList.add('btn-with-icon');
+    });
+    document.querySelectorAll('table').forEach(function(table){
+      if(!table.parentElement.classList.contains('table-wrap') && !table.parentElement.classList.contains('responsive-table')){
+        const wrap=document.createElement('div');
+        wrap.className='table-wrap';
+        table.parentNode.insertBefore(wrap,table);
+        wrap.appendChild(table);
+      }
+    });
+  })();
+</script>
+
+
+<script>
+  // NAF_WORLD_CLASS_UX: command palette, table tools, accessibility, mobile polish
+  (function(){
+    const palette = document.getElementById('commandPalette');
+    const input = document.getElementById('commandSearchInput');
+    const list = document.getElementById('commandPaletteList');
+    if(!palette || !input || !list) return;
+    const items = Array.from(list.querySelectorAll('[data-command-item]'));
+    let lastFocus = null;
+    function openPalette(){
+      lastFocus = document.activeElement;
+      palette.classList.add('show');
+      palette.setAttribute('aria-hidden','false');
+      input.value = '';
+      filter('');
+      setTimeout(()=>input.focus(), 20);
+    }
+    function closePalette(){
+      palette.classList.remove('show');
+      palette.setAttribute('aria-hidden','true');
+      if(lastFocus && lastFocus.focus) lastFocus.focus();
+    }
+    function filter(q){
+      const needle = (q||'').trim().toLowerCase();
+      let first = null;
+      items.forEach(a=>{
+        const hay = (a.textContent + ' ' + (a.getAttribute('data-keywords')||'')).toLowerCase();
+        const ok = !needle || hay.includes(needle);
+        a.style.display = ok ? '' : 'none';
+        a.classList.remove('selected');
+        if(ok && !first) first = a;
+      });
+      if(first) first.classList.add('selected');
+    }
+    document.addEventListener('keydown', (e)=>{
+      const isK = e.key && e.key.toLowerCase() === 'k';
+      if(isK && (e.ctrlKey || e.metaKey)){ e.preventDefault(); openPalette(); return; }
+      if(e.key === 'Escape' && palette.classList.contains('show')){ e.preventDefault(); closePalette(); }
+      if(e.key === 'Enter' && palette.classList.contains('show') && document.activeElement === input){
+        const selected = list.querySelector('[data-command-item].selected:not([style*="display: none"])') || items.find(x=>x.style.display !== 'none');
+        if(selected){ e.preventDefault(); selected.click(); }
+      }
+    });
+    input.addEventListener('input', ()=>filter(input.value));
+    document.querySelectorAll('[data-command-close]').forEach(el=>el.addEventListener('click', closePalette));
+    document.querySelectorAll('#commandOpenBtn,[data-command-trigger]').forEach(el=>el.addEventListener('click', openPalette));
+
+    // Add universal table search/density controls to serious data tables.
+    document.querySelectorAll('table').forEach((table, idx)=>{
+      if(table.dataset.worldTableReady) return;
+      table.dataset.worldTableReady = '1';
+      const rows = Array.from(table.querySelectorAll('tbody tr'));
+      if(rows.length < 4) return;
+      const panel = document.createElement('div');
+      panel.className = 'world-table-tools';
+      panel.innerHTML = `<label class="world-table-search"><span>Filter table</span><input type="search" placeholder="Type to filter rows..." aria-label="Filter table rows"></label><button type="button" class="btn btn-ghost world-density-btn">Compact rows</button>`;
+      const wrapper = table.closest('.table-wrap,.bank-table-wrap,.responsive-table') || table.parentElement;
+      wrapper.parentNode.insertBefore(panel, wrapper);
+      const inp = panel.querySelector('input');
+      inp.addEventListener('input', ()=>{
+        const q = inp.value.trim().toLowerCase();
+        rows.forEach(row => { row.style.display = !q || row.textContent.toLowerCase().includes(q) ? '' : 'none'; });
+      });
+      panel.querySelector('.world-density-btn').addEventListener('click', ()=>{
+        table.classList.toggle('compact-table');
+      });
+    });
+
+    // Field-level error clarity: make invalid controls visible and prevent double submits.
+    document.addEventListener('invalid', (e)=>{
+      const field = e.target;
+      if(field && field.classList) field.classList.add('field-invalid');
+    }, true);
+    document.addEventListener('input', (e)=>{
+      if(e.target && e.target.classList) e.target.classList.remove('field-invalid');
+    });
+    document.addEventListener('submit', (e)=>{
+      const form = e.target;
+      if(!(form instanceof HTMLFormElement)) return;
+      // AJAX/direct-message forms manage their own state. Do not attach global spinners to them.
+      if(form.hasAttribute('data-no-loader') || form.dataset.noLoader === 'true' || form.hasAttribute('data-no-global-submit') || form.dataset.noGlobalSubmit === 'true') return;
+      if(form.dataset.submitted === '1') return;
+      form.dataset.submitted = '1';
+      setTimeout(()=>{ form.dataset.submitted = '0'; }, 2500);
+      form.querySelectorAll('button[type="submit"]').forEach(btn=>{
+        btn.classList.add('is-loading');
+        btn.setAttribute('aria-busy','true');
+      });
+    }, true);
+  })();
+</script>
+  <script src="{{ url_for('static', filename='password_ui.js') }}"></script>
+  <script src="{{ url_for('static', filename='ux_micro_interactions.js') }}"></script>
+  <script src="{{ url_for('static', filename='premium_ui_v3.js') }}"></script>
+</body>
+</html>

@@ -1,0 +1,47 @@
+NAF SSS 18 - Corrected Unit Workflow Enforcement Report
+
+Base build: NAF_SSS_18_SUPER_ADMIN_UNIT_ACCOUNT_PROPER_REDO.zip
+Output build: NAF_SSS_18_UNIT_WORKFLOW_ENFORCED_CORRECTED.zip
+
+What was enforced:
+1. Unit-originated signals now have a record-level workflow guard.
+   - A unit signal is identified from unit workflow status/fields or a non-HQ unit issuer.
+   - This prevents AO/signatory/Commander from bypassing the routing chain by opening release actions directly.
+
+2. Final Sign & Release is blocked until the internal chain is complete:
+   - Chief Clerk drafted/submitted the signal.
+   - Admin Officer / Unit AO reviewed the signal.
+   - AO signed personally OR selected signatory officer endorsed/signed.
+   - Commander gave final approval.
+   - Status is APPROVED_BY_COMMANDER before release.
+
+3. Unit signal final release authority is now Commander-gated.
+   - For unit-originated signals, the final Sign & Release form is available only after Commander approval.
+   - The Commander linked to the signal is the unit final release authority.
+   - HQ Admin/Super Admin retain override/supervision power.
+
+4. Selected signatory routing was tightened.
+   - Once AO forwards to a selected signatory, only that selected current handler can sign/endorse.
+   - AO can still sign only through the AO Sign/Endorse path before forwarding to a signatory.
+
+5. Commander return now goes back to the Chief Clerk/drafter for correction.
+   - Returned by Commander status remains auditable.
+   - Chief Clerk edits/resubmits the signal back to AO.
+
+6. Signal composer wording was corrected for Chief Clerk.
+   - Chief Clerk sees Forward to AO for Review.
+   - The composer explains that the signal is not leaving the unit yet.
+
+7. Commander approval UI was tightened.
+   - Commander Approve appears only while the signal is pending Commander approval.
+   - Already Commander-approved signals move to final Sign & Release instead of showing repeated approval action.
+
+Validation performed:
+- Python compileall check passed.
+- Python AST parse check passed.
+- Jinja syntax parse check passed.
+- CSS brace balance check passed.
+- ZIP integrity check passed after packaging.
+
+Note:
+Flask startup smoke testing could not be executed in this container because Flask is not installed in the current environment. Code-level checks passed.

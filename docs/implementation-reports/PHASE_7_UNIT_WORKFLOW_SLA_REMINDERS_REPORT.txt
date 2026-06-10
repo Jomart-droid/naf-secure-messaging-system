@@ -1,0 +1,27 @@
+PHASE 7 IMPLEMENTATION REPORT - UNIT WORKFLOW SLA & REMINDERS
+
+Base build:
+NAF_SSS_18_UNIT_WORKFLOW_PHASE_6_DASHBOARD_NOTIFICATIONS_IMPLEMENTED.zip
+
+Implemented:
+1. Added unit workflow SLA monitoring helper logic.
+2. Added due-state calculation for each internal unit signal workflow item.
+3. Workflow cards now show:
+   - Within time / Due soon / Overdue
+   - workflow age
+   - due-by timestamp
+4. Unit Workflow Center now displays SLA status badges per signal.
+5. Added reminder action for signals currently waiting with another handler.
+6. Reminder sends a focused in-app notification to the current handler.
+7. Reminder is logged in audit trail as UNIT_WORKFLOW_REMINDER_SENT.
+8. Signal Detail page now shows workflow age, SLA state, due-by time, and a Send Reminder action where permitted.
+9. Added responsive CSS for workflow due panels/cards.
+10. No database schema change required.
+
+Checks:
+- Python compile check passed.
+- Python AST parse check passed.
+- CSS brace balance passed.
+
+Notes:
+This phase improves operational discipline by making pending internal unit signals visible, measurable, and remindable without changing the existing AO/signatory/commander routing logic.

@@ -1,0 +1,827 @@
+{% extends "base.html" %}
+{% block content %}
+<style>
+  .signal-layout{display:grid; grid-template-columns:minmax(360px, 1.05fr) minmax(360px, .95fr); gap:18px; align-items:start;}
+  .signal-note{border:1px solid rgba(37,99,235,.22); background:rgba(37,99,235,.06); border-radius:14px; padding:12px 14px; color:var(--text); margin-bottom:14px;}
+  .official-static{border:1px solid rgba(15,23,42,.12); background:rgba(248,250,252,.95); border-radius:12px; padding:10px 12px; color:#0f172a;}
+  .dark .official-static{background:rgba(15,23,42,.72); border-color:rgba(148,163,184,.22); color:#e5e7eb;}
+  .unit-select{max-height:210px; overflow:auto; border:1px solid rgba(15,23,42,.14); border-radius:12px; padding:8px; background:var(--card-bg, #fff);}
+  .unit-choice{display:flex; gap:10px; padding:7px 8px; border-radius:9px; align-items:flex-start; cursor:pointer; color:var(--text);}
+  .unit-choice:hover{background:rgba(37,99,235,.08);}
+  .unit-choice input{margin-top:4px;}
+  .unit-choice.is-hidden{display:none;}
+  .distribution-builder{border:1px solid rgba(37,99,235,.18); background:linear-gradient(135deg, rgba(37,99,235,.08), rgba(248,250,252,.72)); border-radius:16px; padding:14px; display:grid; gap:12px;}
+  .distribution-title{display:flex; justify-content:space-between; gap:12px; align-items:flex-start;}
+  .distribution-title h3{margin:0; font-size:17px;}
+  .distribution-title p{margin:4px 0 0; color:var(--muted,#64748b); font-size:13px;}
+  .dist-list-grid{display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px;}
+  .dist-chip{border:1px solid rgba(15,23,42,.12); background:rgba(255,255,255,.88); border-radius:12px; padding:9px 10px; display:flex; gap:9px; align-items:flex-start; cursor:pointer;}
+  .dist-chip:hover{background:rgba(37,99,235,.08);}
+  .dist-chip b{display:block; font-size:12px;}
+  .dist-chip small{display:block; color:#64748b; font-size:11px; line-height:1.3;}
+  .all-naf-chip{border-color:rgba(22,163,74,.25); background:rgba(22,163,74,.08);}
+  .exclude-box{border:1px dashed rgba(185,28,28,.28); border-radius:14px; padding:10px; background:rgba(254,242,242,.68);}
+  .route-preview-strip{font-size:12px; font-weight:900; color:#1d4ed8; background:rgba(37,99,235,.08); border-radius:999px; padding:8px 11px; display:inline-flex;}
+  @media(max-width:620px){.dist-list-grid{grid-template-columns:1fr;}}
+  .form-preview{font-size:12px; border:1px solid #111827; background:#fff; color:#111827; padding:14px; border-radius:10px; overflow:auto;}
+  .form-preview table{width:100%; border-collapse:collapse; table-layout:fixed;}
+  .form-preview td{border:1px solid #111827; padding:6px; vertical-align:top;}
+  .form-preview .label{font-weight:800; text-transform:uppercase; font-size:11px;}
+  .form-preview .title{text-align:center; font-weight:800; font-size:16px; margin-bottom:8px;}
+  .form-preview,.form-preview input,.form-preview textarea{text-transform:uppercase;}
+  .signal-voice-panel{border:1px solid rgba(37,99,235,.18); background:linear-gradient(135deg, rgba(37,99,235,.08), rgba(15,23,42,.04)); border-radius:14px; padding:12px; display:flex; flex-wrap:wrap; align-items:center; gap:10px;}
+  .signal-voice-panel b{display:block;}
+  .signal-voice-panel small{color:#64748b;}
+  .signal-voice-actions{display:flex; gap:8px; margin-left:auto; flex-wrap:wrap;}
+  .signal-voice-status{font-size:12px; font-weight:800; color:#475569;}
+  .signal-voice-status.recording{color:#b91c1c;}
+  .signal-attachment-panel{border:1px solid rgba(37,99,235,.18);background:rgba(248,250,252,.78);border-radius:14px;padding:12px;display:grid;gap:8px;}
+  .signal-attachment-panel b{display:block;}
+  .signal-attachment-panel small{color:var(--muted,#64748b);font-weight:700;}
+  .signal-attachment-panel input[type=file]{margin-top:6px;}
+  .voice-button,.signal-voice-btn{border:1px solid rgba(15,23,42,.16); background:#fff; border-radius:12px; min-width:44px; min-height:42px; display:inline-flex; align-items:center; justify-content:center; cursor:pointer; font-weight:900;}
+  .voice-button.recording,.signal-voice-btn.recording{background:#fee2e2; color:#991b1b; border-color:#fecaca;}
+  .voice-note-player{width:100%; margin-top:8px;}
+  .voice-record-status{font-size:12px; font-weight:800; color:#475569; padding:4px 2px;}
+  .voice-record-status.recording{color:#b91c1c;}
+  @media(max-width:1000px){.signal-layout{grid-template-columns:1fr;}}
+
+  /* Phase 6: polished signal drafting workspace */
+  .page-subtitle{margin:6px 0 0;color:var(--muted,#64748b);max-width:760px;}
+  .signal-layout{grid-template-columns:minmax(420px,1.08fr) minmax(380px,.92fr);}
+  .broadcast-compose-card,.signal-preview-card{border:1px solid rgba(37,99,235,.14);box-shadow:0 22px 70px rgba(15,23,42,.08);}
+  .signal-compose-head,.signal-preview-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;margin-bottom:14px;}
+  .signal-compose-head h2,.signal-preview-head h2{margin:3px 0 0;font-size:24px;}
+  .signal-compose-head p{margin:5px 0 0;color:var(--muted,#64748b);}
+  .signal-draft-state{display:inline-flex;align-items:center;gap:8px;border:1px solid rgba(34,197,94,.2);background:rgba(34,197,94,.08);border-radius:999px;padding:8px 12px;font-size:12px;color:#15803d;}
+  .state-dot{width:10px;height:10px;border-radius:50%;background:#22c55e;box-shadow:0 0 0 5px rgba(34,197,94,.14);}
+  .signal-step-strip{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px;}
+  .signal-step-strip span{border:1px solid rgba(15,23,42,.09);border-radius:14px;padding:10px 11px;background:rgba(248,250,252,.82);font-size:12px;font-weight:800;color:#334155;}
+  .signal-step-strip b{display:inline-grid;place-items:center;width:22px;height:22px;margin-right:6px;border-radius:8px;background:#1d4ed8;color:#fff;font-size:12px;}
+  .signal-template-bar{border:1px solid rgba(37,99,235,.14);background:linear-gradient(135deg,rgba(37,99,235,.08),rgba(14,165,233,.05));border-radius:16px;padding:12px;margin-bottom:14px;}
+  .signal-template-bar label{margin:0;}
+  .signal-template-bar small{display:block;margin-top:6px;color:var(--muted,#64748b);font-weight:700;}
+  .broadcast-compose-card .form-grid>label,.broadcast-compose-card .grid-2>label,.broadcast-compose-card .grid-3>label,.broadcast-compose-card .grid-4>label{background:rgba(248,250,252,.66);border:1px solid rgba(15,23,42,.08);border-radius:14px;padding:10px 12px;}
+  .grid-4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;}
+  @media(max-width:1100px){.grid-4{grid-template-columns:repeat(2,minmax(0,1fr));}}
+  @media(max-width:640px){.grid-4{grid-template-columns:1fr;}}
+  .broadcast-compose-card input,.broadcast-compose-card select,.broadcast-compose-card textarea{margin-top:6px;}
+  .unit-select{background:rgba(248,250,252,.78);}
+  .unit-choice:has(input:checked){background:rgba(37,99,235,.12);border:1px solid rgba(37,99,235,.18);font-weight:800;}
+  .signal-preview-card{position:sticky;top:90px;}
+  .classification-badge{display:inline-flex;align-items:center;border-radius:999px;padding:8px 12px;background:#111827;color:#fff;font-weight:900;font-size:12px;letter-spacing:.08em;}
+  .signal-quality-panel{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:12px;}
+  .signal-quality-panel div{border:1px solid rgba(15,23,42,.08);background:rgba(248,250,252,.78);border-radius:14px;padding:10px;text-align:center;}
+  .signal-quality-panel b{display:block;font-size:22px;color:#1d4ed8;line-height:1;}
+  .signal-quality-panel span{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:#64748b;font-weight:900;}
+  .enhanced-preview{box-shadow:inset 0 0 0 1px rgba(15,23,42,.08);}
+  .enhanced-preview #previewBody{min-height:80px;white-space:normal;}
+  .preview-body-empty{color:#64748b;font-style:italic;}
+  .signal-checklist{display:grid;gap:8px;margin-top:12px;}
+  .check-item{border:1px solid rgba(15,23,42,.08);border-radius:12px;padding:9px 11px;font-size:12px;font-weight:900;color:#b45309;background:rgba(245,158,11,.08);}
+  .check-item.done{color:#15803d;background:rgba(34,197,94,.08);border-color:rgba(34,197,94,.18);}
+  .check-item.done::before{content:'✓ ';}
+  .check-item:not(.done)::before{content:'• ';}
+  @media(max-width:1000px){.signal-preview-card{position:static}.signal-step-strip,.signal-quality-panel{grid-template-columns:1fr 1fr;}}
+  @media(max-width:620px){.signal-step-strip,.signal-quality-panel{grid-template-columns:1fr}.signal-compose-head,.signal-preview-head{flex-direction:column}.signal-draft-state{align-self:flex-start}}
+
+  /* Final layout correction: keep drafting workspace above and official preview below. */
+  .signal-layout{
+    display:block !important;
+    max-width:1400px;
+    margin:0 auto;
+  }
+  .broadcast-compose-card{
+    width:100%;
+    margin-bottom:18px;
+  }
+  .signal-preview-card{
+    position:static !important;
+    top:auto !important;
+    width:100%;
+    margin-top:18px;
+  }
+  .signal-preview-card .form-preview{
+    max-height:none;
+  }
+  .distribution-balance-layout{
+    display:grid !important;
+    grid-template-columns:minmax(0,1fr) minmax(0,1fr) !important;
+    gap:18px !important;
+    align-items:stretch !important;
+  }
+  .manual-routing-column,.distribution-logic-column{
+    min-width:0;
+  }
+  .manual-routing-column .unit-select,#info-unit-list,#to-unit-list{
+    max-height:240px;
+  }
+  .distribution-logic-column .exclude-box{
+    min-height:100%;
+  }
+  .info-dist-list-grid{
+    max-height:330px;
+    overflow:auto;
+    padding-right:4px;
+  }
+  @media(max-width:900px){
+    .distribution-balance-layout{grid-template-columns:1fr !important;}
+  }
+
+</style>
+
+<div class="page-head">
+  <div>
+    {% if may_create_signal %}
+      <h1>Create Signal</h1>
+      <p class="page-subtitle">Draft, review and release official signal traffic with cleaner routing, preview, and attachment controls.</p>
+    {% else %}
+      <h1>Received Signals</h1>
+      <p class="page-subtitle">View authorized signal traffic, acknowledgements, and secure message records.</p>
+    {% endif %}
+  </div>
+  <div class="toolbar">
+    <a class="btn secondary" href="{{ url_for('msg.signal_bank') }}">Signal Bank</a>
+    <a class="btn ghost" href="{{ url_for('main.search') }}">Search</a>
+  </div>
+</div>
+
+{% if may_create_signal and pending_workflow_signals %}
+<div class="card hud unit-pending-board" style="margin-bottom:18px;">
+  <div class="row-between" style="gap:12px;align-items:flex-start;">
+    <div>
+      <h2 style="margin:0;">Unit Workflow Queue</h2>
+      <p class="muted" style="margin:4px 0 0;">Internal signals awaiting AO, signatory, commander, or drafter action.</p>
+    </div>
+    <span class="pill">{{ pending_workflow_signals|length }} active</span>
+  </div>
+  <div class="table-wrap" style="margin-top:12px;">
+    <table class="data-table">
+      <thead><tr><th>Signal</th><th>Status</th><th>Pending With</th><th>Created</th></tr></thead>
+      <tbody>
+      {% for sig in pending_workflow_signals %}
+        <tr>
+          <td><a href="{{ url_for('msg.broadcast_detail', broadcast_id=sig.id) }}"><b>{{ sig.title }}</b></a><div class="cell-sub">{{ sig.originator_number or 'Pending serial' }} · {{ sig.security_classification or 'RESTRICTED' }}</div></td>
+          <td><span class="pill">{{ unit_workflow_labels.get(sig.status, sig.status) }}</span></td>
+          <td>{{ sig.current_handler.rank if sig.current_handler else '' }} {{ sig.current_handler.full_name if sig.current_handler else '—' }}</td>
+          <td class="mono">{{ sig.created_at.strftime('%d %b %H:%M') }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+{% if may_create_signal %}
+<div class="signal-layout">
+  <div class="card hud broadcast-compose-card">
+    <div class="signal-compose-head">
+      <div>
+        <div class="eyebrow">NMS SECURE SIGNAL WORKSPACE</div>
+        <h2>Signal Draft</h2>
+        <p>Complete the sections from routing to message text. Signals are submitted first, then digitally signed and released by authorised personnel.</p>
+      </div>
+      <div class="signal-draft-state"><span class="state-dot"></span><b>READY</b></div>
+    </div>
+
+    <div class="premium-composer-status" aria-label="Signal composer status">
+      <span><i></i> Draft not released until signed</span>
+      <span><i></i> Signature captured at release</span>
+      <span><i></i> Audit trail enabled</span>
+    </div>
+
+    <div class="signal-step-strip premium-workflow-rail" aria-label="Signal drafting steps">
+      <button type="button" class="signal-step active" data-composer-step="routing">
+        <span class="step-index">01</span>
+        <span class="step-copy"><b>Routing</b><small>From, To, Info, channel</small></span>
+      </button>
+      <button type="button" class="signal-step" data-composer-step="precedence">
+        <span class="step-index">02</span>
+        <span class="step-copy"><b>Precedence</b><small>Priority and security</small></span>
+      </button>
+      <button type="button" class="signal-step" data-composer-step="text">
+        <span class="step-index">03</span>
+        <span class="step-copy"><b>Message Text</b><small>Subject and signal body</small></span>
+      </button>
+      <button type="button" class="signal-step" data-composer-step="submit">
+        <span class="step-index">04</span>
+        <span class="step-copy"><b>Attach & Submit</b><small>Final check before release</small></span>
+      </button>
+    </div>
+
+    {% if signal_templates %}
+    <div class="signal-template-bar">
+      <label>Quick Signal Template
+        <select id="signalTemplateSelect">
+          <option value="">Start blank / manual draft</option>
+          {% for tpl in signal_templates %}
+            <option value="{{ tpl.key }}" data-title="{{ tpl.title|e }}" data-branch="{{ tpl.branch_office|e }}" data-action="{{ tpl.precedence_action|e }}" data-info="{{ tpl.precedence_info|e }}" data-body="{{ tpl.body|e }}">{{ tpl.label }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <small>Use a template to reduce typing mistakes, then edit before release.</small>
+    </div>
+    {% endif %}
+
+    <form id="broadcastForm" method="post" enctype="multipart/form-data" class="form-grid premium-signal-form" data-signal-processing="true">{{ csrf_field() }}
+      <div class="composer-section-title" id="sectionRouting"><span>01</span><div><b>Routing Identity</b><small>Choose delivery path, originator, references, and official authority details.</small></div></div>
+      <label>Delivery Type
+        <select name="target_scope" id="targetScope">
+          <option value="UNIT">Unit / Selected To</option>
+          <option value="CHANNEL">Channel</option>
+        </select>
+      </label>
+      <label id="channelPickerWrap">Channel
+        <select name="channel_id">
+          <option value="">-- select channel --</option>
+          {% for c in channels %}<option value="{{ c.id }}">{{ c.name }} · {{ c.classification_level or 'RESTRICTED' }}</option>{% endfor %}
+        </select>
+      </label>
+      <input type="hidden" name="requires_ack" value="on">
+      <input type="hidden" name="priority" value="GREEN">
+      <input type="hidden" name="workflow_action" value="SUBMITTED">
+
+      <label>Subject <span class="danger">*</span>
+        <input name="title" data-preview-title placeholder="Subject" required>
+      </label>
+
+      <div class="composer-section-title" id="sectionPrecedence"><span>02</span><div><b>Precedence & Classification</b><small>Set message urgency and security level before drafting text.</small></div></div>
+
+      <div class="grid-3">
+        <label>Precedence Action
+          <select name="precedence_action" data-preview-action>
+            <option value="ROUTINE">ROUTINE</option>
+            <option value="PRIORITY">PRIORITY</option>
+            <option value="IMMEDIATE">IMMEDIATE</option>
+            <option value="FLASH">FLASH</option>
+          </select>
+        </label>
+        <label>Precedence Info
+          <select name="precedence_info" data-preview-info>
+            <option value="ROUTINE">ROUTINE</option>
+            <option value="PRIORITY">PRIORITY</option>
+            <option value="IMMEDIATE">IMMEDIATE</option>
+            <option value="FLASH">FLASH</option>
+          </select>
+        </label>
+        <label>Security Classification
+          <select name="security_classification" data-preview-classification>
+            {% for level in classification_choices %}<option value="{{ level }}">{{ level }}</option>{% endfor %}
+          </select>
+        </label>
+      </div>
+
+      <div class="grid-2">
+        <label>From Unit
+          <select name="from_unit_id" id="fromUnitSelect">
+            <option value="">-- select unit --</option>
+            {% for u in units %}<option value="{{ u.id }}" {% if current_user.unit_id == u.id %}selected{% endif %}>{{ u.name }} ({{ u.code }})</option>{% endfor %}
+          </select>
+        </label>
+        <label>Branch Office
+          <input name="branch_office" data-preview-branch placeholder="CIS" value="CIS">
+        </label>
+      </div>
+
+      <div class="grid-2">
+        <label>Telephone
+          <input name="telephone" data-preview-phone placeholder="Telephone" value="{{ current_user.phone or '' }}">
+        </label>
+        <label>File Number / Reference
+          <input name="file_reference" placeholder="File/reference number">
+        </label>
+      </div>
+
+      <div class="grid-4">
+        <label>Drafter’s Name
+          <input name="drafter_name" data-preview-drafter placeholder="Drafter’s name" value="{{ current_user.full_name.upper() }}">
+        </label>
+        <label>Drafter’s Rank
+          <select name="drafter_rank" data-preview-drafter-rank>
+            <option value="">— Select rank —</option>
+            {% for rank in rank_options %}<option value="{{ rank }}" {% if (current_user.rank or '') == rank %}selected{% endif %}>{{ rank }}</option>{% endfor %}
+          </select>
+        </label>
+        <label>Releasing Officer Name
+          <input name="releasing_officer_name" data-preview-releasing-name placeholder="Releasing officer name" value="{{ current_user.full_name.upper() }}">
+        </label>
+        <label>Releasing Officer Rank
+          <select name="releasing_signature_rank" data-preview-releasing-rank>
+            {% for rank in rank_options %}<option value="{{ rank }}" {% if (current_user.rank or '') == rank %}selected{% endif %}>{{ rank }}</option>{% endfor %}
+          </select>
+        </label>
+      </div>
+
+      <div class="premium-release-note" role="note">
+        <span class="release-note-icon">✍</span>
+        <div><strong>Release signature is captured only at final authority stage.</strong><small>The officer draws the signature with mouse, touch, or stylus during Sign & Release. Draft signals carry no premature signature image.</small></div>
+      </div>
+
+      <div class="composer-section-title" id="sectionDistribution"><span>03</span><div><b>Distribution Logic</b><small>Build visible military addressee lines while backend expands delivery.</small></div></div>
+
+      <div class="distribution-builder" id="nafDistributionBuilder">
+        <div class="distribution-title">
+          <div>
+            <h3>Signal Distribution / Addressees</h3>
+            <p>Select official NAF lists, add individual units, or exclude units using LESS. The visible TO line stays in military format; backend delivery expands recipients automatically.</p>
+          </div>
+          <span class="route-preview-strip" id="routeSyntaxPreview">Manual To</span>
+        </div>
+
+        <label class="dist-chip all-naf-chip">
+          <input type="checkbox" name="naf_all_units" id="nafAllUnits">
+          <span><b>ALL NAF UNITS</b><small>Send to every unit in the official distribution catalogue.</small></span>
+        </label>
+
+        <div class="dist-list-grid">
+          {% for dl in distribution_payload.lists %}
+            <label class="dist-chip" title="{{ dl.description }}">
+              <input type="checkbox" name="distribution_list_names" value="{{ dl.name }}" data-dist-list="{{ dl.name }}">
+              <span><b>{{ dl.name }}</b><small>{{ dl.description }} · {{ dl.count }} unit(s)</small></span>
+            </label>
+          {% endfor %}
+        </div>
+
+        <div class="exclude-box">
+          <label style="margin-bottom:6px; display:block;"><b>LESS / Exclude Units</b></label>
+          <input type="text" class="input unit-filter" placeholder="Search units to exclude e.g. AHQ, NHQ, 641" data-filter-target="#exclude-unit-list">
+          <div id="exclude-unit-list" class="unit-select" style="max-height:150px; margin-top:8px;">
+            {% for u in units %}
+              <label class="unit-choice" data-filter-text="{{ (u.name ~ ' ' ~ u.code)|lower }}">
+                <input type="checkbox" name="exclude_unit_ids" value="{{ u.id }}">
+                <span>{{ u.name }} ({{ u.code }})</span>
+              </label>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+
+      <div class="grid-2 distribution-balance-layout">
+        <div class="manual-routing-column">
+          <label style="margin-bottom:6px; display:block;">To / Action Units <span class="danger">*</span></label>
+          <input type="text" class="input unit-filter" placeholder="Search/add individual To unit" data-filter-target="#to-unit-list">
+          <div id="to-unit-list" class="unit-select">
+            {% for u in units %}
+              <label class="unit-choice" data-filter-text="{{ (u.name ~ ' ' ~ u.code)|lower }}">
+                <input type="checkbox" name="action_unit_ids" value="{{ u.id }}">
+                <span>{{ u.name }} ({{ u.code }})</span>
+              </label>
+            {% endfor %}
+          </div>
+
+          <div style="margin-top:18px;">
+            <label style="margin-bottom:6px; display:block;">Individual Info Units</label>
+            <input type="text" class="input unit-filter" placeholder="Search/add individual Info unit" data-filter-target="#info-unit-list">
+            <div id="info-unit-list" class="unit-select">
+              {% for u in units %}
+                <label class="unit-choice" data-filter-text="{{ (u.name ~ ' ' ~ u.code)|lower }}">
+                  <input type="checkbox" name="info_unit_ids" value="{{ u.id }}">
+                  <span>{{ u.name }} ({{ u.code }})</span>
+                </label>
+              {% endfor %}
+            </div>
+          </div>
+        </div>
+
+        <div class="distribution-logic-column">
+          <div class="info-distribution-box exclude-box" style="height:100%;">
+            <label style="margin-bottom:6px; display:block;"><b>Info List Selection</b></label>
+            <p style="margin-bottom:12px; color:#9fb3c8; font-size:13px;">
+              Select official NAF lists for INFO routing. The printable PDF shows the list label only, while backend delivery expands the actual units.
+            </p>
+            <label class="dist-chip all-naf-chip">
+              <input type="checkbox" name="info_naf_all_units" id="infoNafAllUnits">
+              <span><b>ALL NAF UNITS</b><small>Info copy to every unit in the official distribution catalogue.</small></span>
+            </label>
+            <div class="dist-list-grid info-dist-list-grid">
+              {% for dl in distribution_payload.lists %}
+                <label class="dist-chip" title="{{ dl.description }}">
+                  <input type="checkbox" name="info_distribution_list_names" value="{{ dl.name }}" data-info-dist-list="{{ dl.name }}">
+                  <span><b>{{ dl.name }}</b><small>{{ dl.description }} · {{ dl.count }} unit(s)</small></span>
+                </label>
+              {% endfor %}
+            </div>
+
+            <div class="exclude-box info-less-box" style="margin-top:14px;">
+              <label style="margin-bottom:6px; display:block;"><b>INFO LESS / Exclude Units</b></label>
+              <input type="text" class="input unit-filter" placeholder="Search units to exclude from Info e.g. AHQ, NHQ, 641" data-filter-target="#info-exclude-unit-list">
+              <div id="info-exclude-unit-list" class="unit-select" style="max-height:150px; margin-top:8px;">
+                {% for u in units %}
+                  <label class="unit-choice" data-filter-text="{{ (u.name ~ ' ' ~ u.code)|lower }}">
+                    <input type="checkbox" name="info_exclude_unit_ids" value="{{ u.id }}">
+                    <span>{{ u.name }} ({{ u.code }})</span>
+                  </label>
+                {% endfor %}
+              </div>
+            </div>
+
+            <div class="route-preview-strip" id="infoRouteSyntaxPreview" style="display:flex; width:100%; justify-content:flex-start; margin-top:12px;">
+              Manual Info
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="composer-section-title" id="sectionText"><span>04</span><div><b>Signal Text</b><small>Write the official message exactly as it should appear in the NAF form.</small></div></div>
+
+      <label>Message Text <span class="danger">*</span>
+        <textarea id="signal_body" name="body" data-preview-body rows="12" placeholder="Type the signal text exactly as it should appear under TEXT:"></textarea>
+      </label>
+
+      <div class="signal-voice-panel">
+        <div>
+          <b>Voice Typing for Signal Text</b>
+          <small>Speak the signal text and it will appear inside the message text area. You can also type normally.</small>
+          <div id="signalVoiceStatus" class="signal-voice-status">Ready for voice typing</div>
+        </div>
+        <div class="signal-voice-actions">
+          <button type="button" id="signalVoiceBtn" class="signal-voice-btn" title="Dictate signal text into the message area">🎙️ Start Dictation</button>
+          <button type="button" id="signalVoiceClear" class="btn btn-ghost" style="display:none;" title="Stop dictation">Stop</button>
+        </div>
+      </div>
+
+      <label class="row" style="align-items:center; gap:8px;">
+        <input type="checkbox" name="refers_classified_message">
+        <span>Refers to a classified message</span>
+      </label>
+
+      <div class="composer-section-title" id="sectionSubmit"><span>05</span><div><b>Attachment & Submission</b><small>{% if current_user.unit_id and current_user.appointment == 'Chief Clerk' %}Chief Clerk forwards this draft to the unit AO. It will not leave the unit yet.{% else %}Add supporting files and submit for authorized sign-and-release.{% endif %}</small></div></div>
+
+      <div class="signal-attachment-panel">
+        <div>
+          <b>Signal Attachment(s)</b>
+          <small>Attach supporting files for this signal. Authorized recipients can view and download them from the signal details page. The official print/export will list the attachment filenames only.</small>
+        </div>
+        <input type="file" name="attachments" multiple accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.png,.jpg,.jpeg,.webp,.zip">
+      </div>
+
+      <div class="row" style="gap:10px; flex-wrap:wrap;">
+        <button class="btn btn-primary" type="submit">{% if current_user.unit_id and current_user.appointment == 'Chief Clerk' %}Forward to AO for Review{% else %}Submit Signal for Release{% endif %}</button>
+        <button class="btn btn-ghost" type="reset">Clear Form</button>
+      </div>
+    </form>
+  </div>
+
+  <aside class="card hud signal-preview-card">
+    <div class="signal-preview-head">
+      <div>
+        <div class="eyebrow">LIVE OUTPUT CHECK</div>
+        <h2>Official Output Preview</h2>
+      </div>
+      <span id="previewClassificationBadge" class="classification-badge">RESTRICTED</span>
+    </div>
+    <div class="signal-quality-panel">
+      <div><b id="qualityRouting">0</b><span>To units</span></div>
+      <div><b id="qualityInfo">0</b><span>Info units</span></div>
+      <div><b id="qualityWords">0</b><span>Words</span></div>
+    </div>
+    <div class="form-preview enhanced-preview">
+      <div class="title">NAF MESSAGE FORM</div>
+      <table>
+        <tr><td class="label">DRAFTER’S NAME IN BLOCK LETTERS<br><br><span id="previewDrafter">{{ current_user.full_name.upper() }}{% if current_user.rank %} ({{ current_user.rank }}){% endif %}</span></td><td class="label">RELEASING OFFICER<br><br><span id="previewReleasingRank">{{ current_user.rank or '—' }}</span> <span id="previewReleasingName">{{ current_user.full_name.upper() }}</span></td></tr>
+        <tr><td class="label">SUBJECT<br><br><span id="previewTitle">Untitled signal</span></td><td class="label">PRECEDENCE ACTION<br><br><span id="previewAction">ROUTINE</span></td></tr>
+        <tr><td><b>From:</b> {{ current_user.unit.code if current_user.unit else 'UNIT' }}<br><br><b>To:</b> <span id="previewTo">Selected Unit(s)</span><br><br><b>Info:</b> <span id="previewInfoUnits">Selected Info Unit(s)</span></td><td class="label">BRANCH OFFICE<br><br><span id="previewBranch">CIS</span><br><br>TELEPHONE NUMBER<br><br><span id="previewPhone">{{ current_user.phone or '—' }}</span></td></tr>
+        <tr><td class="label">MESSAGE INSTRUCTION</td><td class="label">PRECEDENCE INFO<br><br><span id="previewPrecedenceInfo">ROUTINE</span></td></tr>
+        <tr><td class="label">SECURITY CLASSIFICATION<br><br><span id="previewClassification">RESTRICTED</span></td><td class="label">DIG SERIAL NO / ORIGINATOR NUMBER<br><br>AUTO</td></tr>
+        <tr><td colspan="2"><b>TEXT:</b><br><br><div id="previewBody" class="preview-body-empty">Your message body appears here.</div></td></tr>
+      </table>
+    </div>
+    <div class="signal-checklist">
+      <div class="check-item" id="checkSubject">Subject required</div>
+      <div class="check-item" id="checkRecipient">At least one To unit</div>
+      <div class="check-item" id="checkBody">Message text required</div>
+      <div class="check-item" id="checkVoice">Voice note optional</div>
+    </div>
+  </aside>
+</div>
+
+{% else %}
+<div class="card hud access-panel" style="margin-bottom:18px; border-left:4px solid #2563eb;">
+  <div class="row-between" style="gap:12px; align-items:flex-start;">
+    <div>
+      <h2 style="margin:0;">View-Only Access</h2>
+      
+    </div>
+    <span class="pill">{{ current_user.role }}</span>
+  </div>
+</div>
+{% endif %}
+
+<div class="card hud" style="margin-top:18px;">
+  <div class="row-between" style="gap:12px;">
+    <div><h2 style="margin:0;">{{ 'Recent Signals' if may_create_signal else 'Authorized Signals' }}</h2></div>
+    <input class="input" style="max-width:340px;" placeholder="Filter signals…" data-filter="#broadcastList">
+  </div>
+  <ul id="broadcastList" class="list" style="margin-top:12px;">
+    {% for b in broadcasts %}
+      <li data-filter-item data-filter-text="{{ b.title }} {{ b.priority }} {{ b.status }} {{ b.security_classification }} {{ b.originator_number or '' }}">
+        <div class="row" style="align-items:flex-start; justify-content:space-between; gap:12px;">
+          <div><a href="{{ url_for('msg.broadcast_detail', broadcast_id=b.id) }}"><b>{{ b.title }}</b></a><div class="meta" style="margin-top:4px;"><span class="pill {% if b.status == 'RECALLED' or b.recalled_at %}pill-red{% endif %}">{{ b.status }}</span><span class="pill">{{ b.security_classification or 'RESTRICTED' }}</span><span class="pill">{{ b.originator_number or 'Pending serial' }}</span></div></div>
+          <div class="muted mono" style="font-size:12px;">{{ b.created_at.strftime("%Y-%m-%d %H:%M") }}</div>
+        </div>
+      </li>
+    {% else %}<li class="empty" data-filter-item><div class="big">No signals available</div></li>{% endfor %}
+  </ul>
+</div>
+<script>
+(function(){
+  const scope=document.getElementById('targetScope');
+  const wrap=document.getElementById('channelPickerWrap');
+  function updateChannelPicker(){ if(!scope||!wrap)return; wrap.style.display = scope.value === 'CHANNEL' ? '' : 'none'; }
+  scope && scope.addEventListener('change', updateChannelPicker); updateChannelPicker();
+})();
+</script>
+{% endblock %}
+
+{% block extra_scripts %}
+{% if may_create_signal %}
+<script src="https://cdn.tiny.cloud/1/n9b8tb356sk2j8ndazdzdseyyuhdadsbyko1mr9b955db29j/tinymce/7/tinymce.min.js" referrerpolicy="origin"></script>
+{% endif %}
+<script>
+(function(){
+  const NAF_DISTRIBUTION = {{ distribution_payload|tojson }};
+
+  function distributionIdsForSelection(){
+    const ids = new Set();
+    const all = document.getElementById('nafAllUnits');
+    if(all && all.checked){ (NAF_DISTRIBUTION.allUnitIds || []).forEach(id => ids.add(String(id))); }
+    document.querySelectorAll('[data-dist-list]:checked').forEach(cb => {
+      const row = (NAF_DISTRIBUTION.lists || []).find(x => x.name === cb.value);
+      if(row){ (row.units || []).forEach(u => ids.add(String(u.id))); }
+    });
+    return ids;
+  }
+  function excludedIds(){
+    return new Set(Array.from(document.querySelectorAll('#exclude-unit-list input[type="checkbox"]:checked')).map(cb => String(cb.value)));
+  }
+  function routeSyntaxText(){
+    const parts = [];
+    const all = document.getElementById('nafAllUnits');
+    if(all && all.checked) parts.push('ALL NAF UNITS');
+    document.querySelectorAll('[data-dist-list]:checked').forEach(cb => parts.push(cb.value));
+    const excludedNames = Array.from(document.querySelectorAll('#exclude-unit-list input[type="checkbox"]:checked')).map(cb => (cb.closest('.unit-choice')?.querySelector('span')?.textContent || '').replace(/\s*\([^)]*\)\s*$/, '').trim());
+    if(excludedNames.length) parts.push('LESS ' + excludedNames.join(', '));
+    return parts.join(' + ') || 'Manual To';
+  }
+  function applyDistributionRouting(){
+    // IMPORTANT: Do NOT auto-check individual unit boxes when ALL NAF UNITS
+    // or LIST A/B/C/etc is selected. Those lists are backend delivery routes,
+    // not visible/manual unit selections. The UI and printable signal must show
+    // only the route label, while the backend expands recipients on submit.
+    const strip = document.getElementById('routeSyntaxPreview');
+    if(strip) strip.textContent = routeSyntaxText();
+    updateSignalPreview();
+  }
+  document.addEventListener('change', function(e){
+    if(e.target && e.target.matches('#to-unit-list input[type="checkbox"]')){ e.target.dataset.manualSelected = e.target.checked ? '1' : ''; }
+    if(e.target && (e.target.matches('[data-dist-list]') || e.target.matches('#nafAllUnits') || e.target.matches('#exclude-unit-list input[type="checkbox"]'))){ applyDistributionRouting(); }
+  });
+
+  document.querySelectorAll('.unit-filter').forEach(function(input){
+    const target=document.querySelector(input.dataset.filterTarget); if(!target) return;
+    const items=Array.from(target.querySelectorAll('.unit-choice'));
+    input.addEventListener('input', function(){ const q=input.value.trim().toLowerCase(); items.forEach(function(item){ const text=(item.dataset.filterText||''); item.classList.toggle('is-hidden', q && !text.includes(q)); }); });
+  });
+
+  if(window.tinymce && document.getElementById('signal_body')){
+    tinymce.init({
+      selector: '#signal_body',
+      height: 420,
+      min_height: 300,
+      menubar: false,
+      branding: false,
+      promotion: false,
+      statusbar: true,
+      resize: true,
+      plugins: 'lists table wordcount autoresize',
+      toolbar: 'undo redo | bold italic underline | alignleft aligncenter alignright | bullist numlist | table | removeformat',
+      valid_elements: 'p,br,strong/b,em/i,u,ol,ul,li,table,thead,tbody,tr,td[colspan|rowspan],th[colspan|rowspan],span[style],div[style]',
+      valid_styles: { '*': 'text-align' },
+      paste_as_text: false,
+      paste_data_images: false,
+      automatic_uploads: false,
+      convert_urls: false,
+      table_default_attributes: { border: '1' },
+      table_default_styles: { borderCollapse: 'collapse', width: '100%' },
+      content_style: `
+        body { font-family: Arial, Helvetica, sans-serif; font-size: 13px; line-height: 1.55; color:#0f172a; background:#fff; padding:10px; }
+        p { margin: 0 0 8px; }
+        table { border-collapse: collapse; width: 100%; margin: 8px 0; }
+        table td, table th { border: 1px solid #000; padding: 5px 6px; vertical-align: top; }
+        ul, ol { margin-top: 6px; margin-bottom: 8px; padding-left: 24px; }
+      `,
+      setup: function(editor){
+        editor.on('change keyup undo redo', function(){ tinymce.triggerSave(); updateSignalPreview(); });
+      }
+    });
+  }
+
+
+
+  function htmlToText(html){
+    const box = document.createElement('div');
+    box.innerHTML = html || '';
+    return (box.textContent || box.innerText || '').replace(/\s+/g,' ').trim();
+  }
+  function selectedUnitNames(selector){
+    return Array.from(document.querySelectorAll(selector + ' input[type="checkbox"]:checked')).map(cb => (cb.closest('.unit-choice')?.querySelector('span')?.textContent || '').trim()).filter(Boolean);
+  }
+  function namesOnlyLabel(names){
+    if(names.length > 8) return names.slice(0,8).join(', ') + ' +' + (names.length - 8) + ' more';
+    return names.join(', ');
+  }
+  function compactRecipientLabel(names){
+    const route = routeSyntaxText();
+    if(route && route !== 'Manual To') return route;
+    return namesOnlyLabel(names);
+  }
+  function selectedListNames(selector){
+    return Array.from(document.querySelectorAll(selector + ':checked')).map(cb => cb.value || cb.dataset.distList || cb.dataset.infoDistList).filter(Boolean);
+  }
+
+  function buildInfoRouteLabel(){
+    const parts=[];
+    if(document.getElementById('infoNafAllUnits')?.checked) parts.push('ALL NAF UNITS');
+    const lists = selectedListNames('[data-info-dist-list]');
+    parts.push(...lists);
+    const manualInfo = selectedUnitNames('#info-unit-list');
+    if(manualInfo.length) parts.push('UNITS: ' + namesOnlyLabel(manualInfo));
+    const excludedNames = selectedUnitNames('#info-exclude-unit-list');
+    if(excludedNames.length && (parts.length || manualInfo.length)) parts.push('LESS ' + namesOnlyLabel(excludedNames));
+    return parts.join('; ');
+  }
+
+  function updateSignalPreview(){
+    const title = document.querySelector('[data-preview-title]')?.value.trim() || 'Untitled signal';
+    const action = document.querySelector('[data-preview-action]')?.value || 'ROUTINE';
+    const infoPrec = document.querySelector('[data-preview-info]')?.value || 'ROUTINE';
+    const classification = document.querySelector('[data-preview-classification]')?.value || 'RESTRICTED';
+    const branch = document.querySelector('[data-preview-branch]')?.value.trim() || 'CIS';
+    const phone = document.querySelector('[data-preview-phone]')?.value.trim() || '—';
+    const drafterName = document.querySelector('[data-preview-drafter]')?.value.trim() || '—';
+    const drafterRank = document.querySelector('[data-preview-drafter-rank]')?.value.trim() || '';
+    const drafter = drafterRank ? `${drafterName} (${drafterRank})` : drafterName;
+    const releasingName = document.querySelector('[data-preview-releasing-name]')?.value.trim() || '—';
+    const releasingRank = document.querySelector('[data-preview-releasing-rank]')?.value || '—';
+    const rawBody = window.tinymce && tinymce.get('signal_body') ? tinymce.get('signal_body').getContent() : (document.getElementById('signal_body')?.value || '');
+    const bodyText = htmlToText(rawBody);
+    const toNames = selectedUnitNames('#to-unit-list');
+    const infoNames = selectedUnitNames('#info-unit-list');
+    const map = {previewTitle:title, previewAction:action, previewPrecedenceInfo:infoPrec, previewClassification:classification, previewBranch:branch, previewPhone:phone, previewDrafter:drafter, previewReleasingName:releasingName, previewReleasingRank:releasingRank};
+    Object.entries(map).forEach(([id,val]) => { const el=document.getElementById(id); if(el) el.textContent=(val || '').toString().toUpperCase(); });
+    const badge=document.getElementById('previewClassificationBadge'); if(badge) badge.textContent=classification;
+    const toRoute = routeSyntaxText();
+    const toEl=document.getElementById('previewTo'); if(toEl) toEl.textContent = ((toRoute && toRoute !== 'Manual To') ? toRoute : (toNames.length ? namesOnlyLabel(toNames) : 'Selected Unit(s)')).toUpperCase();
+    const infoLabel = buildInfoRouteLabel();
+    const infoEl=document.getElementById('previewInfoUnits'); if(infoEl) infoEl.textContent = (infoLabel || (infoNames.length ? compactRecipientLabel(infoNames) : 'Selected Info Unit(s)')).toUpperCase();
+    const infoRoute=document.getElementById('infoRouteSyntaxPreview'); if(infoRoute) infoRoute.textContent = (infoLabel || 'Manual Info').toUpperCase();
+    const bodyEl=document.getElementById('previewBody'); if(bodyEl){ bodyEl.classList.toggle('preview-body-empty', !bodyText); bodyEl.innerHTML = bodyText ? rawBody.toUpperCase() : 'YOUR MESSAGE BODY APPEARS HERE.'; }
+    const wordEl=document.getElementById('qualityWords'); if(wordEl) wordEl.textContent = bodyText ? bodyText.split(/\s+/).length : 0;
+    const qTo=document.getElementById('qualityRouting'); if(qTo) qTo.textContent = (toRoute && toRoute !== 'Manual To') ? toRoute : toNames.length;
+    const qInfo=document.getElementById('qualityInfo'); if(qInfo) qInfo.textContent = infoNames.length;
+    document.getElementById('checkSubject')?.classList.toggle('done', !!document.querySelector('[data-preview-title]')?.value.trim());
+    document.getElementById('checkRecipient')?.classList.toggle('done', toNames.length > 0 || (toRoute && toRoute !== 'Manual To'));
+    document.getElementById('checkBody')?.classList.toggle('done', !!bodyText);
+    document.getElementById('checkVoice')?.classList.toggle('done', !!bodyText);
+  }
+  document.querySelectorAll('[data-preview-title],[data-preview-action],[data-preview-info],[data-preview-classification],[data-preview-branch],[data-preview-phone],[data-preview-drafter],[data-preview-drafter-rank],[data-preview-releasing-name],[data-preview-releasing-rank],#to-unit-list input,#info-unit-list input,#exclude-unit-list input,#info-exclude-unit-list input,[data-dist-list],[data-info-dist-list],#nafAllUnits,#infoNafAllUnits').forEach(el => el.addEventListener('input', updateSignalPreview));
+  document.querySelectorAll('[data-preview-drafter-rank],#to-unit-list input,#info-unit-list input,#exclude-unit-list input,#info-exclude-unit-list input,[data-dist-list],[data-info-dist-list],#nafAllUnits,#infoNafAllUnits').forEach(el => el.addEventListener('change', updateSignalPreview));
+  const templateSelect = document.getElementById('signalTemplateSelect');
+  if(templateSelect){
+    templateSelect.addEventListener('change', function(){
+      const opt = templateSelect.options[templateSelect.selectedIndex];
+      if(!opt || !opt.value) return;
+      const setVal = (sel,val) => { const el=document.querySelector(sel); if(el && val) { el.value = val; el.dispatchEvent(new Event('input', {bubbles:true})); } };
+      setVal('[name="title"]', opt.dataset.title || '');
+      setVal('[name="branch_office"]', opt.dataset.branch || '');
+      setVal('[name="precedence_action"]', opt.dataset.action || '');
+      setVal('[name="precedence_info"]', opt.dataset.info || '');
+      if(window.tinymce && tinymce.get('signal_body')){ tinymce.get('signal_body').setContent(opt.dataset.body || ''); tinymce.triggerSave(); }
+      else { const body=document.getElementById('signal_body'); if(body) body.value = opt.dataset.body || ''; }
+      updateSignalPreview();
+    });
+  }
+
+  const signalVoiceBtn = document.getElementById('signalVoiceBtn');
+  const signalVoiceStatus = document.getElementById('signalVoiceStatus');
+  const signalVoiceClear = document.getElementById('signalVoiceClear');
+  let signalRecognition = null;
+  let dictating = false;
+  let finalTranscriptBuffer = '';
+
+  function setSignalVoiceStatus(text, active){
+    if(!signalVoiceStatus) return;
+    signalVoiceStatus.textContent = text;
+    signalVoiceStatus.classList.toggle('recording', !!active);
+  }
+  function getSpeechRecognition(){ return window.SpeechRecognition || window.webkitSpeechRecognition || null; }
+  function speechSupported(){ return !!getSpeechRecognition(); }
+  function speechBlockReason(){
+    if(!speechSupported()) return 'Speech-to-text is not supported in this browser. Use Chrome or Edge, or type manually.';
+    if(!window.isSecureContext && !['localhost','127.0.0.1','::1'].includes(window.location.hostname)) return 'Speech-to-text may be blocked on insecure LAN HTTP. Use localhost/127.0.0.1 or configure HTTPS if the browser blocks microphone access.';
+    return 'Ready for voice typing.';
+  }
+  function getCurrentSignalBodyText(){
+    if(window.tinymce && tinymce.get('signal_body')) return tinymce.get('signal_body').getContent({format:'text'}).trim();
+    return (document.getElementById('signal_body')?.value || '').trim();
+  }
+  function setSignalBodyText(text){
+    const body = document.getElementById('signal_body');
+    if(window.tinymce && tinymce.get('signal_body')){
+      const safe = (text || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
+      tinymce.get('signal_body').setContent(safe);
+      tinymce.triggerSave();
+    }else if(body){
+      body.value = text || '';
+      body.dispatchEvent(new Event('input', {bubbles:true}));
+    }
+    updateSignalPreview();
+  }
+  function appendSignalDictation(text, interim){
+    const base = finalTranscriptBuffer || getCurrentSignalBodyText();
+    const joined = [base, text].filter(Boolean).join(base && text ? ' ' : '');
+    setSignalBodyText(joined);
+    if(!interim) finalTranscriptBuffer = joined.trim();
+  }
+  function startSignalDictation(){
+    const SR = getSpeechRecognition();
+    if(!SR){ setSignalVoiceStatus(speechBlockReason(), false); return; }
+    try{
+      finalTranscriptBuffer = getCurrentSignalBodyText();
+      signalRecognition = new SR();
+      signalRecognition.lang = 'en-US';
+      signalRecognition.continuous = true;
+      signalRecognition.interimResults = true;
+      signalRecognition.onstart = () => {
+        dictating = true;
+        signalVoiceBtn.classList.add('recording');
+        signalVoiceBtn.textContent = '🎙️ Listening…';
+        if(signalVoiceClear) signalVoiceClear.style.display = '';
+        setSignalVoiceStatus('Listening. Speak clearly; text will appear in Message Text.', true);
+      };
+      signalRecognition.onresult = (event) => {
+        let interim = '';
+        let finalText = '';
+        for(let i = event.resultIndex; i < event.results.length; i++){
+          const t = event.results[i][0].transcript.trim();
+          if(event.results[i].isFinal) finalText += (finalText ? ' ' : '') + t;
+          else interim += (interim ? ' ' : '') + t;
+        }
+        if(finalText) appendSignalDictation(finalText, false);
+        else if(interim) appendSignalDictation(interim, true);
+      };
+      signalRecognition.onerror = (err) => {
+        const name = err && err.error ? err.error : 'unknown';
+        let msg = 'Voice typing stopped. You can continue typing manually.';
+        if(name === 'not-allowed' || name === 'service-not-allowed') msg = 'Microphone permission blocked. Allow microphone access or use HTTPS/localhost.';
+        if(name === 'no-speech') msg = 'No speech detected. Click Start Dictation and try again.';
+        setSignalVoiceStatus(msg, false);
+      };
+      signalRecognition.onend = () => {
+        dictating = false;
+        signalVoiceBtn.classList.remove('recording');
+        signalVoiceBtn.textContent = '🎙️ Start Dictation';
+        if(signalVoiceClear) signalVoiceClear.style.display = 'none';
+        setSignalVoiceStatus('Voice typing stopped. You can edit the text manually.', false);
+      };
+      signalRecognition.start();
+    }catch(e){ setSignalVoiceStatus('Voice typing could not start. Use Chrome/Edge or type manually.', false); }
+  }
+  function stopSignalDictation(){
+    try{ if(signalRecognition) signalRecognition.stop(); }catch(e){}
+  }
+  if(signalVoiceBtn){
+    signalVoiceBtn.addEventListener('click', () => { if(dictating) stopSignalDictation(); else startSignalDictation(); });
+    signalVoiceBtn.title = speechBlockReason();
+  }
+  if(signalVoiceClear){ signalVoiceClear.addEventListener('click', stopSignalDictation); }
+
+  applyDistributionRouting();
+  updateSignalPreview();
+  const form=document.getElementById('broadcastForm');
+  if(form) form.addEventListener('submit', function(e){
+    if(window.tinymce){ tinymce.triggerSave(); }
+    const scope = form.querySelector('[name="target_scope"]')?.value || 'UNIT';
+    const channelSelected = !!form.querySelector('[name="channel_id"]')?.value;
+    const toSelected = !!(form.querySelector('input[name="action_unit_ids"]:checked') || form.querySelector('input[name="distribution_list_names"]:checked') || form.querySelector('input[name="naf_all_units"]:checked'));
+    if(scope === 'CHANNEL'){
+      if(!channelSelected){ e.preventDefault(); alert('Please select a channel.'); return; }
+    }else if(!toSelected){
+      e.preventDefault(); alert('Please select at least one To unit, To list, or All NAF Units.'); return;
+    }
+    const raw=(document.getElementById('signal_body').value||'').trim();
+    const bodyText=raw.replace(/<[^>]*>/g,'').replace(/&nbsp;/g,' ').trim();
+    if(!bodyText){ e.preventDefault(); alert('Message text is required.'); }
+  });
+})();
+</script>
+<script>
+(function(){
+  const scope=document.getElementById('targetScope');
+  const wrap=document.getElementById('channelPickerWrap');
+  function updateChannelPicker(){ if(!scope||!wrap)return; wrap.style.display = scope.value === 'CHANNEL' ? '' : 'none'; }
+  scope && scope.addEventListener('change', updateChannelPicker); updateChannelPicker();
+})();
+</script>
+{% endblock %}

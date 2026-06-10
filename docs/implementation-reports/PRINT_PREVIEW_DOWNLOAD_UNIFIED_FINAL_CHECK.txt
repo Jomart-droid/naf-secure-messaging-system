@@ -1,0 +1,16 @@
+PRINT_PREVIEW_DOWNLOAD_UNIFIED_FINAL_CHECK.txt
+
+Fix applied:
+1. Browser print preview remains the master layout.
+2. Downloaded PDF route no longer uses the old ReportLab/manual PDF layout.
+3. Downloaded PDF now renders the same broadcast_print.html HTML/CSS through headless Chrome/Edge.
+4. The same pagination context is shared by preview and PDF download.
+5. Footer-only empty pages are filtered before rendering.
+6. Signature image is embedded as a data URI for offline Chrome PDF rendering.
+7. PDF password protection is applied after Chrome/Edge renders the exact print layout using pypdf.
+8. Signal Bank single download and bulk ZIP export were also moved to the same HTML print engine.
+
+Operational requirement:
+- Install Google Chrome or Microsoft Edge on the host machine.
+- If Chrome/Edge is not in the normal path, set NMS_CHROME_PATH to the browser executable.
+- Run: pip install -r requirements.txt

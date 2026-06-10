@@ -1,0 +1,16 @@
+ATTACHMENT OPTION C CHECK REPORT
+
+Changed files:
+1. app/routes/messaging.py
+   - Updated _broadcast_attachment_print_block().
+   - Printable/exported signal no longer lists full attachment filenames.
+   - It now prints only: ATTACHMENT(S): 1 FILE or ATTACHMENT(S): X FILES.
+   - Full filenames still remain available on the signal detail page/download list.
+
+2. app/templates/messaging/broadcast_print.html
+   - Added .attachment-summary print styling.
+   - Attachment summary avoids page break/collision as much as possible.
+
+Checks performed:
+- Python compile check passed for app package.
+- Confirmed only compact attachment summary is appended to print/export body.

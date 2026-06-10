@@ -1,0 +1,46 @@
+NAF SSS 18 - Corrected Phase 2 Implementation Report
+
+PHASE 2: Unit AO as Unit-Level Super Admin
+
+Implemented from the corrected Phase 1 Unit Account Users build.
+
+What was corrected:
+1. Added explicit Unit AO permission helpers.
+   - is_unit_ao_account(user)
+   - is_unit_workspace_account(user)
+   - can_manage_unit_users(user)
+
+2. Kept Unit AO separate from global HQ Admin.
+   - AO can manage users only inside his/her unit.
+   - AO does not receive global ADMIN role.
+   - Appointment controls the unit-level authority.
+
+3. Added a new Unit Admin Center.
+   Route: /admin/unit-admin
+   Sidebar: Unit Admin
+
+4. Unit Admin Center shows:
+   - Unit identity
+   - Unit user summary
+   - Primary Unit AO
+   - Chief Clerk count
+   - Signatory count
+   - Commander count
+   - Recent unit signals
+   - Recent unit audit trail
+   - Links to manage unit users and unit audit
+
+5. Unit Users page now explicitly identifies the Unit AO as the local super admin.
+   - It still supports Chief Clerk, Admin Officer / Unit AO, Signatory Officer, Other Officer, and Commander.
+
+6. Sidebar and command search now expose Unit Admin Center to authorised unit management users.
+
+Checks passed:
+- Python compile check passed.
+- Flask startup check passed.
+- Jinja template parse passed for HTML templates.
+- CSS brace balance passed.
+- ZIP integrity test performed after packaging.
+
+Next proper phase:
+Phase 3 should enforce Chief Clerk as the normal drafter and route drafted signals to AO instead of allowing the old direct-send flow to dominate unit-originated signals.

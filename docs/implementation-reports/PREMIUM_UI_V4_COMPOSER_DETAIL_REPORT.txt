@@ -1,0 +1,22 @@
+NAF SSS PREMIUM UI V4 - Composer and Signal Detail Refinement
+
+Implemented updates:
+1. Added a dedicated Signal Control guide rail to the composer.
+2. Rebuilt composer layout into a safe three-zone structure: guide rail, drafting form, live official preview.
+3. Added responsive breakpoints to prevent overlap on desktop, tablet, and mobile.
+4. Improved sidebar containment, collapsed mode, active states, text truncation, and nav spacing.
+5. Refined light/dark contrast using a calmer official palette and stronger text/border tokens.
+6. Reworked workflow rail visuals to avoid bulky overlapping blocks.
+7. Improved composer forms, distribution panels, unit selectors, checklist, preview cards, and focus states.
+8. Added active composer section tracking for Routing / Precedence / Text / Submit.
+9. Added signal case summary strip to signal detail page.
+10. Improved signal detail verification panels, timeline cards, and official form container.
+11. Added wide-screen and mobile safety rules to prevent layout bleed.
+
+Checks to perform manually after running:
+- Open Create Signal on desktop, tablet width, and phone width.
+- Collapse and expand sidebar.
+- Check dark and light themes.
+- Confirm workflow rail never overlaps.
+- Confirm official preview remains readable.
+- Open a signal detail page and confirm case summary displays cleanly.

@@ -1,0 +1,9 @@
+NMS UI Clean Sweep QA
+
+Applied:
+- Removed/reduced verbose instructional text across admin, signal, channel, direct message and system pages.
+- Strengthened light-mode contrast for cards, forms, tables, badges, logs and inputs.
+- Preserved dark-mode readability.
+- Standardized icon sizing inside buttons.
+- Hardened sidebar height/scroll behavior on desktop and mobile.
+- Kept important labels, warnings, statuses, audit details and operational messages.

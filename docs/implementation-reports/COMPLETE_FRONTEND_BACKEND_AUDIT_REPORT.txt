@@ -1,0 +1,58 @@
+NAF SSS 18 - COMPLETE FRONTEND/BACKEND AUDIT REPORT
+
+Scope checked:
+- Python backend compile/AST
+- Flask app startup and blueprint registration
+- SQLite additive schema upgrade
+- Jinja template parsing
+- URL endpoint references
+- Template/static file references
+- JavaScript syntax
+- CSS brace balance
+- Authenticated smoke tests using Flask test client
+- Key pages: dashboard, signal composer, signal detail, signal bank, direct messages, unit workflow, unit audit, master audit, users, units, settings, notifications, search
+
+Results:
+1. Python compile check: PASSED
+2. Python AST parse check: PASSED
+3. Flask create_app startup: PASSED
+4. Blueprints registered: admin, auth, main, msg
+5. Health route: PASSED
+6. Login page render: PASSED
+7. Jinja syntax check: PASSED
+8. Missing render_template files: NONE FOUND
+9. Missing static assets referenced by templates: NONE FOUND
+10. Literal url_for endpoint references: PASSED
+11. JavaScript syntax check for static files: PASSED
+12. Inline JavaScript syntax check where not Jinja-dependent: PASSED
+13. CSS brace balance: PASSED
+14. ZIP integrity: PASSED after packaging
+
+Authenticated smoke routes verified:
+- /dashboard
+- /m/broadcasts
+- /m/direct
+- /m/direct/unit
+- /m/unit-workflow
+- /m/signal-bank
+- /admin/unit-audit
+- /admin/logs
+- /admin/users
+- /admin/units
+- /admin/unit-officers
+- /admin/channels
+- /admin/settings
+- /admin/system_logs
+- /notifications
+- /search
+- sample signal detail pages
+- sample print preview pages
+- sample protected Signal Bank download page
+
+Notes:
+- Existing old demo signals that were created before the new digital signature gate may show warnings when the archive routine refuses to regenerate unsigned/unverified released signals. That is expected protection behavior, not a syntax failure.
+- The SQLite schema has been touched by app startup so the new unit workflow columns are present in the bundled database copy.
+- No frontend syntax break was found during this audit.
+
+Recommendation:
+- For operational/demo use, create fresh demo signals through the new workflow so they carry valid signatures/fingerprints and archive cleanly.

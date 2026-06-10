@@ -1,0 +1,44 @@
+PHASE 1 CORRECTION - UNIT ACCOUNT USER MANAGEMENT
+
+Base build: NAF_SSS_18_COMPLETE_FRONTEND_BACKEND_AUDITED.zip
+
+User requirement corrected:
+- When a unit account is created, the unit must have room to create users/officers inside that unit.
+- Unit-level users must include Chief Clerk, Admin Officer / Unit AO, Signatory Officer, Other Officer and Commander.
+- AO is treated as the unit-level administrator/super admin for unit operations.
+
+Implemented correction:
+1. Manual unit creation can now optionally create the unit login immediately.
+   - Login format: UNIT/<UNITCODE>
+   - Password can be supplied or auto-generated.
+   - Created account is account_type=UNIT and tied to the created unit.
+
+2. Existing units now have a Create Unit Login action in the Unit Directory.
+   - If a unit already has UNIT/<UNITCODE>, the system warns and does not duplicate it.
+   - After creation, admin is redirected to the Unit Users page for that unit.
+
+3. Unit Officers page was clarified into Unit Users.
+   - Labels now reflect Chief Clerk, Unit AO, Commander, Signatory Officer and Other Officer accounts.
+   - Empty state tells the user to create Unit AO, Chief Clerk and Commander first.
+   - Page text now explains the intended workflow foundation.
+
+4. Sidebar and command search were updated.
+   - Unit Officers menu now appears as Unit Users.
+   - Command palette includes Unit Users.
+
+5. Bulk unit import login creation was aligned with the corrected architecture.
+   - Unit login accounts are created as UNIT workspace accounts, not full commander accounts.
+
+Checks passed:
+- Python compile check passed.
+- Python AST parse check passed.
+- Jinja template parse check passed.
+- Flask app startup check passed.
+- CSS brace balance passed.
+- ZIP integrity check passed after packaging.
+
+Next phase should not begin until this is confirmed in the browser:
+- Admin creates a unit with unit login.
+- Unit account logs in.
+- Unit account sees Unit Users.
+- Unit account creates Unit AO, Chief Clerk, Commander and Signatory Officer.

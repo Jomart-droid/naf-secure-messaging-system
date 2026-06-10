@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="admin-console">
+  <div class="admin-hero-panel">
+    <div class="admin-eyebrow"><span class="pulse-dot"></span> SYSTEM LOG VIEWER</div>
+    <h1>System Logs & Backup Records</h1>
+    
+  </div>
+  <section class="admin-panel">
+    <div class="admin-table-toolbar"><div><h2>Console Output</h2></div><input id="sysFilter" class="admin-search" placeholder="Filter lines…"></div>
+    <div class="admin-table-wrap"><table class="admin-table" id="sysTable"><thead><tr><th>Line</th></tr></thead><tbody>{% for line in lines %}<tr><td><code>{{ line }}</code></td></tr>{% endfor %}</tbody></table></div>
+  </section>
+</section>
+<script>(function(){const i=document.getElementById('sysFilter'),t=document.getElementById('sysTable');if(!i||!t)return;i.addEventListener('input',()=>{const q=i.value.toLowerCase();t.querySelectorAll('tbody tr').forEach(r=>r.style.display=!q||r.innerText.toLowerCase().includes(q)?'':'none')});})();</script>
+{% endblock %}

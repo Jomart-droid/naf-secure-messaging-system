@@ -1,0 +1,17 @@
+NAF SSS 15 - Sidebar Scroll Restore Fix
+
+Issue:
+- The previous sidebar/composer restore added .sidebar { overflow:hidden!important; } to prevent overlap.
+- That fixed bleed/overlap but also removed vertical scrolling from the sidebar.
+
+Fix Applied:
+- Restored .sidebar vertical scrolling with overflow-y:auto!important.
+- Preserved overflow-x:hidden to prevent horizontal bleed.
+- Added thin professional scrollbar styling for Chromium/Edge/Chrome and Firefox.
+- Applied the same scroll behaviour to desktop, collapsed sidebar, and mobile drawer modes.
+- Kept nav items contained to prevent the previous overlap problem from returning.
+
+Checks:
+- CSS brace balance checked.
+- Python compile check passed.
+- ZIP integrity checked after packaging.

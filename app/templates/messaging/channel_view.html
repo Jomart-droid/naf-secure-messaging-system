@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="toprow">
+  <div>
+    <h1>{{ ch.name }}</h1>
+    <div class="muted">{{ ch.scope }} · {{ ch.classification_level or "RESTRICTED" }} · {{ (ch.units|map(attribute="code")|list|join(", ")) or (ch.unit.code if ch.unit else "Mission") }}</div>
+  </div>
+  <div class="row" style="gap:10px;">
+    <a class="btn btn-ghost" href="{{ url_for('msg.channel_list') }}">Back</a>
+  </div>
+</div>
+
+
+<div class="card hud" style="margin-bottom:14px;">
+  <div class="row-between"><h2 style="margin:0;">Official Signals in this Channel</h2><span class="pill">{{ channel_signals|length }}</span></div>
+  <ul class="list" style="margin-top:10px;">
+    {% for b in channel_signals %}
+      <li><div class="row-between"><div><a href="{{ url_for('msg.broadcast_detail', broadcast_id=b.id) }}"><b>{{ b.originator_number or ('Signal #' ~ b.id) }}</b></a><div class="meta">{{ b.title }} · {{ b.security_classification }} · {{ b.created_at.strftime('%d %b %Y %H:%M') if b.created_at else '' }}</div></div><span class="pill">{{ b.status }}</span></div></li>
+    {% else %}
+      <li class="empty"><div class="big">No official signals posted to this channel.</div></li>
+    {% endfor %}
+  </ul>
+</div>
+
+<div class="card hud">
+  <div id="chat" class="chat">
+    {% for m in messages %}
+      <div class="msg {% if m.sender_id == current_user.id %}me{% endif %}" data-msg-id="{{ m.id }}">
+        <div class="msg-meta">
+          <span>{{ m.sender.full_name }}</span>
+          <span class="muted">{{ m.created_at.strftime('%d %b %Y %H:%M') }}</span>
+        </div>
+        <div class="msg-body">{{ m.get_body() }}</div>
+
+        {% if allow_attachments and m.attachments.count() > 0 %}
+          <div class="attachments">
+            {% for a in m.attachments.all() %}
+              <a class="attach" href="{{ url_for('msg.download_attachment', attachment_id=a.id) }}">
+                📎 {{ a.original_filename }} <small>({{ (a.size_bytes/1024)|round(0) }} KB)</small>
+              </a>
+            {% endfor %}
+          </div>
+        {% endif %}
+      </div>
+    {% else %}
+      <div class="muted">No messages yet.</div>
+    {% endfor %}
+  </div>
+
+  <form class="composer" method="post" enctype="multipart/form-data">{{ csrf_field() }}
+    <input name="body" id="composer" placeholder="Write a message…" autocomplete="off" />
+    {% if allow_attachments %}
+      <input type="file" name="attachments" multiple title="Attach files (max {{ max_attachment_mb }}MB each)" />
+    {% endif %}
+    <button class="btn" type="submit">Send</button>
+  </form>
+  <div id="typingIndicator" class="typing-indicator"></div>
+  <div id="channelPresenceHint" class="hint">Channel messages are real-time for online users in this channel.</div>
+</div>
+
+<script>
+(function(){
+  const channelId = {{ ch.id }};
+  const me = parseInt(document.body.dataset.userId || '0');
+  const chat = document.getElementById('chat');
+
+  function scrollToBottom(){ chat.scrollTop = chat.scrollHeight; }
+  scrollToBottom();
+
+  window.NAF_SOCKET.emit('join_channel', {channel_id: channelId});
+
+  function renderMsg(msg){
+    const wrap = document.createElement('div');
+    wrap.className = 'msg' + (msg.sender_id === me ? ' me' : '');
+    wrap.dataset.msgId = msg.id;
+
+    const meta = document.createElement('div');
+    meta.className = 'msg-meta';
+    const left = document.createElement('span');
+    left.textContent = msg.sender_name;
+    const right = document.createElement('span');
+    right.className = 'muted';
+    right.textContent = new Date(msg.created_at).toLocaleString();
+    meta.appendChild(left); meta.appendChild(right);
+
+    const body = document.createElement('div');
+    body.className = 'msg-body';
+    body.textContent = msg.body;
+
+    wrap.appendChild(meta);
+    wrap.appendChild(body);
+    return wrap;
+  }
+
+  window.NAF_SOCKET.on('channel_message', (msg) => {
+    if(msg.channel_id !== channelId) return;
+    if(document.querySelector('[data-msg-id="'+msg.id+'"]')) return;
+    chat.appendChild(renderMsg(msg));
+    scrollToBottom();
+  });
+  const input = document.getElementById('composer');
+  let typingTimer = null;
+  function setTyping(isTyping){ window.NAF_SOCKET.emit('channel_typing', {channel_id: channelId, is_typing: !!isTyping}); }
+  if(input){
+    input.addEventListener('input', () => {
+      setTyping(true);
+      clearTimeout(typingTimer);
+      typingTimer = setTimeout(() => setTyping(false), 1200);
+    });
+    input.form && input.form.addEventListener('submit', () => setTyping(false));
+  }
+  window.NAF_SOCKET.on('typing', (t) => {
+    if(!t || t.scope !== 'CHANNEL' || t.channel_id !== channelId) return;
+    const el = document.getElementById('typingIndicator');
+    if(!el) return;
+    el.textContent = t.is_typing ? `${t.from_name || 'User'} is typing…` : '';
+  });
+  window.NAF_SOCKET.on('channel_presence', (p) => {
+    if(!p || p.channel_id !== channelId) return;
+    const el = document.getElementById('channelPresenceHint');
+    if(el && p.user) el.textContent = `${p.user.name || 'User'} joined live channel room.`;
+  });
+})();
+</script>
+
+{% endblock %}

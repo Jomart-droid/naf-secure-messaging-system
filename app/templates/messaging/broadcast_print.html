@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>{{ b.title }}</title>
+  <style>
+    @page { size: A4; margin: 0; }
+    * { box-sizing: border-box; }
+    body { font-family: Arial, Helvetica, sans-serif; color:#000; margin:0; background:#d9d9d9; }
+    .preview-bar { padding:10px 14px 12px; display:flex; justify-content:space-between; align-items:center; gap:10px; background:#fff; border-bottom:1px solid #aaa; }
+    .preview-bar a,.preview-bar button{border:1px solid #000;background:#fff;color:#000;padding:6px 10px;text-decoration:none;cursor:pointer;}
+
+    .print-page {
+      width: 210mm;
+      min-height: 297mm;
+      height: 297mm;
+      margin: 0 auto 8mm;
+      padding: 7mm 7mm 47mm 7mm;
+      background:#fff;
+      position: relative;
+      overflow: hidden;
+      page-break-after: always;
+      break-after: page;
+    }
+    .print-page:last-child { page-break-after: auto; break-after: auto; margin-bottom:0; }
+    .title { text-align:center; font-size:15px; font-weight:700; margin:0 0 6px; letter-spacing:.04em; }
+    .drafter-row { margin-bottom:2px; }
+    .drafter-box { border:1px solid #000; min-height:18mm; padding:4px 8px; display:flex; flex-direction:column; justify-content:flex-start; align-items:flex-end; }
+    .drafter-label { font-weight:700; text-transform:uppercase; line-height:1.25; text-align:right; padding-right:10px; width:60mm; }
+    .drafter-value { margin-top:4px; padding-right:10px; width:60mm; text-align:right; font-size:12px; font-weight:700; line-height:1.15; }
+    table.form, table.footer, table.meta { width:100%; border-collapse:collapse !important; border-spacing:0 !important; table-layout:fixed; border:1.5px solid #000 !important; }
+    table.form td, table.footer td, table.meta td { border:1.5px solid #000 !important; padding:4px 6px; vertical-align:top; font-size:10.5px; line-height:1.24; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+    table.form td.label, table.footer td.label, table.meta td.label { font-weight:700; text-transform:uppercase; }
+    .mid-cell .line { margin-bottom:8px; }
+    .mid-cell .line:last-child { margin-bottom:0; }
+    .blank-fill { min-height:11mm; }
+    /* Centre cells under TO/INFO are blank spacer cells. Remove their horizontal
+       borders so the TO/INFO area does not show unused table lines. */
+    table.form td.no-mid-lines { border-top:0 !important; border-bottom:0 !important; }
+    table.form td.middle-merged { border-bottom:0 !important; }
+    .sec-class-note { font-size:9px; line-height:1.2; display:block; margin-bottom:2px; }
+    .text-label { border:1px solid #000; border-bottom:none; padding:4px 6px; font-size:10.5px; font-weight:700; text-transform:uppercase; margin-top:2px; }
+    .body-pages { margin-top:0; border:1px solid #000; border-top:none; width:100%; }
+    .body-pages.first-body { min-height: 126mm; }
+    .body-pages.cont-body { min-height: 236mm; }
+    .text-body { padding:6px 7px 0; font-size:10px; line-height:1.24; overflow:visible; text-align:justify; text-justify:inter-word; }
+    .text-body p { margin:0 0 5px; text-align:justify; text-justify:inter-word; }
+    .text-body table { width:100%; border-collapse:collapse; margin:8px 0 6px; table-layout:fixed; page-break-inside:auto; break-inside:auto; }
+    .text-body thead { display:table-header-group; }
+    .text-body tr { page-break-inside:avoid; break-inside:avoid; }
+    .text-body th, .text-body td { border:1px solid #000; padding:4px 5px; vertical-align:top; word-break:break-word; overflow-wrap:anywhere; text-align:left; }
+    .checkbox-line { display:flex; align-items:center; gap:6px; margin-bottom:6px; }
+    .box { display:inline-block; width:10px; text-align:center; }
+    .page-cell { white-space:pre-line; }
+    .mono { font-family: "Courier New", Courier, monospace; font-size:10px; }
+    .middle-merged { padding-top:6px; padding-bottom:6px; }
+    .middle-merged .line-title { font-weight:700; }
+    .diag-cell { position:relative; overflow:hidden; }
+    .diag-cell::after {
+      content:""; position:absolute; inset:0;
+      background:linear-gradient(to bottom right, transparent 49.3%, #000 49.5%, #000 50.5%, transparent 50.7%);
+      pointer-events:none;
+    }
+    .diag-cell .diag-text { position:relative; z-index:1; display:block; }
+
+    .official-print-footer {
+      position: absolute;
+      left: 7mm;
+      right: 7mm;
+      bottom: 7mm;
+      background:#fff;
+      z-index: 2;
+      height: 36mm;
+      overflow: hidden;
+    }
+    .footer-page-text { font-weight:700; text-transform:uppercase; text-align:center; }
+
+    .forensic-watermark { position: absolute; inset: 0; pointer-events: none; z-index: 0; }
+    .forensic-watermark .wm-mark {
+      position: absolute; left: 50%; top: 56%; width: 82%;
+      transform: translate(-50%, -50%) rotate(-28deg);
+      text-align: center; font-weight: 700; font-size: 15px; line-height: 1.75;
+      letter-spacing: .12em; text-transform: uppercase; color: rgba(0, 0, 0, .055);
+    }
+    .forensic-watermark .wm-side {
+      position: absolute; right: 5mm; top: 38mm; writing-mode: vertical-rl; transform: rotate(180deg);
+      font-size: 7px; letter-spacing: .08em; color: rgba(0,0,0,.18); text-transform: uppercase;
+    }
+    .forensic-watermark .wm-footer {
+      position: absolute; left: 8mm; right: 8mm; bottom: 2.5mm;
+      border-top: .35pt solid rgba(0,0,0,.28); padding-top: 1.5mm;
+      font-size: 7.5px; letter-spacing: .03em; color: rgba(0,0,0,.62);
+      display: flex; justify-content: space-between; gap: 8px;
+    }
+    .page-content { position: relative; z-index: 1; }
+    .signature-img { max-width:42mm; max-height:18mm; display:block; margin:2mm auto 1mm; object-fit:contain; }
+    .signature-rank { display:block; text-align:center; margin-top:1mm; }
+
+    @media print {
+  table.form, table.footer, table.meta { border-collapse:collapse !important; border-spacing:0 !important; border:1.5px solid #000 !important; }
+  table.form td, table.footer td, table.meta td { border:1.5px solid #000 !important; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+      body { background:#fff; }
+      .preview-bar { display:none; }
+      .print-page { margin:0; box-shadow:none; }
+    }
+  
+.attachment-summary {
+  margin: 6px 0 0;
+  font-weight: 700;
+  page-break-inside: avoid;
+  break-inside: avoid;
+}
+
+</style>
+</head>
+<body{% if not preview_mode and not export_mode %} onload="window.print()"{% endif %}>
+  {% set printed_by = (current_user.rank ~ ' ' if current_user.rank else '') ~ current_user.full_name ~ ' | ' ~ (current_user.service_number or 'NO SERVICE NO') %}
+  {% set print_id = audit_print_id or ('NMS-PRINT-' ~ b.id) %}
+  {% if preview_mode %}<div class="preview-bar"><strong>Official print preview</strong><div><a href="{{ url_for('msg.broadcast_detail', broadcast_id=b.id) }}">Back</a> <a href="{{ url_for('msg.broadcast_print_pdf', broadcast_id=b.id) }}">Download Protected PDF</a> <button type="button" onclick="window.print()">Print now</button></div></div>{% endif %}
+
+  {% for row in form_ctx.print_pages %}
+  <section class="print-page">
+    <div class="forensic-watermark" aria-hidden="true">
+      <div class="wm-mark">{{ printed_by }} &nbsp; • &nbsp; {{ row.security_classification or 'RESTRICTED' }} &nbsp; • &nbsp; {{ print_id }}</div>
+      <div class="wm-side">{{ printed_by }} • {{ print_id }}</div>
+      <div class="wm-footer"><span>Printed by: {{ printed_by }}</span><span>{{ print_id }}</span></div>
+    </div>
+
+    <div class="page-content">
+      {% if row.is_first_page %}
+      <div class="title">NAF MESSAGE FORM</div>
+      <div class="drafter-row">
+        <div class="drafter-box">
+          <div class="drafter-label">DRAFTER’S NAME IN<br>BLOCK LETTERS</div>
+          <div class="drafter-value">{{ row.drafter_name }}</div>
+        </div>
+      </div>
+      <table class="form">
+        <colgroup><col style="width:30%"><col style="width:40%"><col style="width:30%"></colgroup>
+        <tr>
+          <td class="label">PRECEDENCE ACTION<br><br>{{ row.precedence_action }}</td>
+
+<td class="mid-cell middle-merged" rowspan="5">
+  <div class="line"><span class="line-title">From:</span> {{ row.from_unit_text or row.from }}</div>
+  <div class="line"><span class="line-title">To:</span> {{ row.to }}</div>
+
+  {% if row.action_lines %}
+    <div class="line">
+      {% for line in row.action_lines %}
+        {{ line }}{% if not loop.last %}<br>{% endif %}
+      {% endfor %}
+    </div>
+  {% endif %}
+
+  {% if row.info_lines %}
+    <div class="line">
+      <span class="line-title">Info:</span>
+      {% for line in row.info_lines %}
+        {{ line }}{% if not loop.last %}<br>{% endif %}
+      {% endfor %}
+    </div>
+  {% endif %}
+</td>
+          <td class="label">BRANCH OFFICE<br><br><span style="font-weight:400; text-transform:uppercase;">{{ row.branch_office }}</span></td>
+        </tr>
+        <tr>
+          <td class="label">PRECEDENCE INFO<br><br><span style="font-weight:400; text-transform:uppercase;">{{ row.precedence_info }}</span></td>
+          <td class="label">TELEPHONE NUMBER.<br><br><span style="font-weight:400; text-transform:uppercase;">{{ row.telephone }}</span></td>
+        </tr>
+        <tr>
+          <td class="label">DATE TIME GROUP <br><br><span style="font-weight:400; text-transform:uppercase;">{{ row.dtg }}</span></td>
+          <td class="label">RELEASING OFFICER’S<br>SIGNATURE AND RANK<br>{% if row.releasing_signature_image_data or row.releasing_signature_image %}<img class="signature-img" src="{{ row.releasing_signature_image_data or url_for('msg.broadcast_signature_image', broadcast_id=b.id) }}" alt="Signature">{% endif %}<span class="signature-rank" style="font-weight:400; text-transform:uppercase;">{{ row.releasing_signature_rank }}</span>{% if row.signature_meta and row.signature_meta.fingerprint %}<div style="font-size:6px; line-height:1.15; margin-top:2px; font-weight:400; word-break:break-all;">DIGITALLY VERIFIED: {{ row.signature_meta.fingerprint }}<br>{{ row.signature_meta.signed_at_text }}</div>{% endif %}</td>
+        </tr>
+        <tr>
+          <td class="label diag-cell"><span class="diag-text">MESSAGE INSTRUCTION</span></td>
+          <td class="label">NAME OF RELEASING OFFICER<br><br><span style="font-weight:400; text-transform:uppercase;">{{ row.releasing_officer_name }}</span></td>
+        </tr>
+        <tr>
+          <td class="label">SECURITY CLASSIFICATION<span class="sec-class-note">(MESSAGE REFERRING TO A CLASSIFIED MESSAGE MUST BE CLASSIFIED RESTRICTED OR ABOVE)</span><span style="font-weight:400; text-transform:uppercase;">{{ row.security_classification }}</span></td>
+          <td class="label">DIG SERIAL NO<br>(IF USED)<br>(ORIGINATOR’S NUMBER)<br><br><span style="font-weight:400; text-transform:uppercase;">{{ row.originator_number }}</span></td>
+        </tr>
+      </table>
+      <div class="text-label">TEXT:</div>
+      {% else %}
+      <div class="text-label">TEXT CONTINUED:</div>
+      {% endif %}
+      <div class="body-pages {% if row.is_first_page %}first-body{% else %}cont-body{% endif %}"><div class="text-body">{{ row.body_html|safe }}</div></div>
+    </div>
+
+    <div class="official-print-footer">
+      <table class="footer">
+        <colgroup><col style="width:25%"><col style="width:25%"><col style="width:25%"><col style="width:25%"></colgroup>
+        <tr>
+          <td class="label">INTERNAL DISTRIBUTION</td>
+          <td class="value">{{ row.internal_distribution or "INTERNAL DISTRIBUTION: CIS, OPS, INT" }}</td>
+          <td class="label">FILE NUMBER OR REFERENCE</td>
+          <td class="value">{{ row.file_reference }}</td>
+        </tr>
+        <tr>
+          <td colspan="2" class="value">
+            <div class="checkbox-line"><span class="box">{% if row.refers_classified_message %}☒{% else %}☐{% endif %}</span><span>Refers to a classified Message (tick appropriate box)</span></div>
+            <div class="checkbox-line"><span class="box">{% if row.does_not_refer_classified_message %}☒{% else %}☐{% endif %}</span><span>Does not refer to a classified Message</span></div>
+          </td>
+          <td colspan="2" class="page-cell footer-page-text">Page {{ row.page_label }} Of {{ row.page_total }} Page</td>
+        </tr>
+      </table>
+      <table class="meta">
+        <colgroup><col style="width:25%"><col style="width:25%"><col style="width:25%"><col style="width:25%"></colgroup>
+        <tr>
+          <td class="label">Comms/Gen Serial No<br><span style="font-weight:400; text-transform:uppercase;">{{ row.comms_gen_serial_no or "AUTO" }}</span></td>
+          <td class="label">Sender-Receiver OP<br><span style="font-weight:400; text-transform:uppercase;">{{ row.sender_receiver_op or "AUTO" }}</span></td>
+          <td class="label">System<br><span style="font-weight:400; text-transform:uppercase;">{{ row.transmission_system or "NAF SECURE MESSAGING PLATFORM" }}</span></td>
+          <td class="label">Time-In/Out<br><span style="font-weight:400; text-transform:uppercase;">{{ row.time_in_out or "AUTO" }}</span></td>
+        </tr>
+      </table>
+    </div>
+  </section>
+  {% endfor %}
+</body>
+</html>

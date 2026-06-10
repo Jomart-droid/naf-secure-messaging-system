@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="account-console">
+  <div class="account-hero">
+    <div>
+      <div class="admin-eyebrow"><span class="pulse-dot"></span> PERSONAL ACCOUNT SECURITY</div>
+      <h1>My Login Details</h1>
+      
+    </div>
+    <div class="account-id-card">
+      <strong>{{ current_user.rank or 'Officer' }} {{ current_user.full_name }}</strong>
+      <span>{{ current_user.service_number }}</span>
+      <span>{{ current_user.role }} · {{ current_user.clearance_level }}</span>
+    </div>
+  </div>
+
+  {% if current_user.must_change_password %}
+  <div class="system-lock-note must-change-note">
+    <div class="lock-note-icon">!</div>
+    <div>
+      <strong>Temporary password detected</strong>
+      <span>You must set a new password before continuing into the platform.</span>
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="account-grid">
+    <form method="post" class="settings-section account-form">{{ csrf_field() }}
+      <h2>Update Login / Contact Details</h2>
+      
+      <div class="admin-form-grid">
+        <label>
+          <span>Login Username / Service Number</span>
+          <input name="service_number" value="{{ current_user.service_number }}" required>
+        </label>
+        <label>
+          <span>Official Email</span>
+          <input type="email" name="email" value="{{ current_user.email or '' }}" placeholder="official.email@example.mil">
+        </label>
+        <label>
+          <span>Phone Number</span>
+          <input name="phone" value="{{ current_user.phone or '' }}" placeholder="Optional contact number">
+        </label>
+        <label>
+          <span>Current Password</span>
+          <input type="password" name="current_password" autocomplete="current-password" placeholder="Required for username/password changes">
+        </label>
+        <label>
+          <span>New Password</span>
+          <input type="password" name="new_password" autocomplete="new-password" placeholder="Leave blank to keep current password">
+        </label>
+        <label>
+          <span>Confirm New Password</span>
+          <input type="password" name="confirm_password" autocomplete="new-password">
+        </label>
+      </div>
+      <div class="account-submit-row">
+        <button class="btn" type="submit">Save My Account Details</button>
+      </div>
+    </form>
+
+    <aside class="settings-section account-readonly">
+      <h2>HQ-Controlled Fields</h2>
+      <p>These details cannot be changed from your personal window.</p>
+      <div class="readonly-list">
+        <div><span>Full Name</span><strong>{{ current_user.full_name }}</strong></div>
+        <div><span>Rank</span><strong>{{ current_user.rank or 'Not set' }}</strong></div>
+        <div><span>Role</span><strong>{{ current_user.role }}</strong></div>
+        <div><span>Unit</span><strong>{{ current_user.unit.code if current_user.unit else 'No unit assigned' }}</strong></div>
+        <div><span>Clearance</span><strong>{{ current_user.clearance_level }}</strong></div>
+        <div><span>Last Login</span><strong>{{ current_user.last_login_at.strftime('%d %b %Y %H:%M') if current_user.last_login_at else 'Not recorded' }}</strong></div>
+      </div>
+    </aside>
+  </div>
+</section>
+{% endblock %}

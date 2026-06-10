@@ -1,0 +1,91 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="page-head unit-workflow-page-head">
+  <div>
+    <h1>Unit Workflow Center</h1>
+    <p class="page-subtitle">Track internal signal movement from Chief Clerk review through AO, signatory, and Commander approval.</p>
+  </div>
+  <div class="toolbar">
+    <a class="btn btn-primary" href="{{ url_for('msg.broadcasts') }}">Create Signal</a>
+    <a class="btn btn-ghost" href="{{ url_for('admin.unit_officers') }}">Unit Officers</a>
+  </div>
+</div>
+
+<div class="workflow-stat-grid">
+  <div class="workflow-stat"><span>My Action</span><b>{{ stats.my_action }}</b></div>
+  <div class="workflow-stat"><span>Returned</span><b>{{ stats.returned }}</b></div>
+  <div class="workflow-stat"><span>Ready for Release</span><b>{{ stats.ready_release }}</b></div>
+  <div class="workflow-stat"><span>In Routing</span><b>{{ stats.in_routing }}</b></div>
+</div>
+
+{% macro signal_card(sig) -%}
+  {% set due = due_info(sig) %}
+  <article class="workflow-signal-card workflow-sla-{{ due.severity }}">
+    <div class="workflow-card-main">
+      <div class="workflow-card-topline">
+        <span class="pill">{{ labels.get(sig.status, sig.status) }}</span>
+        <span class="mono">{{ sig.originator_number or 'Pending serial' }}</span>
+        <span class="workflow-due-pill due-{{ due.severity }}">{{ due.label }} · {{ due.age_text }}</span>
+      </div>
+      <h3>{{ sig.title or 'Untitled Signal' }}</h3>
+      <div class="workflow-meta">
+        <span>{{ sig.security_classification or 'RESTRICTED' }}</span>
+        <span>{{ sig.precedence_action or sig.signal_precedence or 'ROUTINE' }}</span>
+        <span>Due {{ due.due_at.strftime('%d %b %H:%M') }}</span>
+      </div>
+      {% if sig.return_reason %}<p class="workflow-return-text">{{ sig.return_reason }}</p>{% endif %}
+    </div>
+    <div class="workflow-card-side">
+      <small>Pending with</small>
+      <strong>{{ sig.current_handler.rank if sig.current_handler else '' }} {{ sig.current_handler.full_name if sig.current_handler else '—' }}</strong>
+      <a class="btn btn-ghost btn-sm" href="{{ url_for('msg.broadcast_detail', broadcast_id=sig.id) }}">Open</a>
+      {% if sig.current_handler_id and sig.current_handler_id != current_user.id %}
+        <form method="post" action="{{ url_for('msg.unit_workflow_remind', broadcast_id=sig.id) }}" data-no-loader="true">
+          <button class="btn btn-ghost btn-sm" type="submit">Remind</button>
+        </form>
+      {% endif %}
+      {% if sig.status in ['DRAFT','RETURNED_BY_AO','RETURNED_BY_COMMANDER','RECALLED'] and (sig.issuer_id == current_user.id or can_create_signal()) %}
+        <a class="btn btn-primary btn-sm" href="{{ url_for('msg.broadcast_edit', broadcast_id=sig.id) }}">Edit</a>
+      {% endif %}
+    </div>
+  </article>
+{%- endmacro %}
+
+<div class="workflow-board">
+  <section class="workflow-lane workflow-lane-action">
+    <div class="workflow-lane-head"><h2>My Action</h2><span>{{ groups.my_action|length }}</span></div>
+    {% if groups.my_action %}
+      {% for sig in groups.my_action %}{{ signal_card(sig) }}{% endfor %}
+    {% else %}
+      <div class="empty-state compact">No signal is currently waiting for your action.</div>
+    {% endif %}
+  </section>
+
+  <section class="workflow-lane workflow-lane-returned">
+    <div class="workflow-lane-head"><h2>Returned / Correction</h2><span>{{ groups.returned|length }}</span></div>
+    {% if groups.returned %}
+      {% for sig in groups.returned %}{{ signal_card(sig) }}{% endfor %}
+    {% else %}
+      <div class="empty-state compact">No returned signal is pending correction.</div>
+    {% endif %}
+  </section>
+
+  <section class="workflow-lane workflow-lane-ready">
+    <div class="workflow-lane-head"><h2>Ready for Release</h2><span>{{ groups.ready_release|length }}</span></div>
+    {% if groups.ready_release %}
+      {% for sig in groups.ready_release %}{{ signal_card(sig) }}{% endfor %}
+    {% else %}
+      <div class="empty-state compact">No Commander-approved signal is awaiting final release.</div>
+    {% endif %}
+  </section>
+
+  <section class="workflow-lane workflow-lane-routing">
+    <div class="workflow-lane-head"><h2>In Routing</h2><span>{{ groups.in_routing|length }}</span></div>
+    {% if groups.in_routing %}
+      {% for sig in groups.in_routing %}{{ signal_card(sig) }}{% endfor %}
+    {% else %}
+      <div class="empty-state compact">No other signal is moving through internal routing.</div>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

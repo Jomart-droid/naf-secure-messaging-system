@@ -1,0 +1,29 @@
+NAF SSS 18 - UNIT WORKFLOW PHASE 4 IMPLEMENTATION REPORT
+
+Phase 4 implemented from: NAF_SSS_18_UNIT_WORKFLOW_PHASE_3_CENTER_IMPLEMENTED.zip
+
+Scope: Unit Internal Direct Messaging
+
+Implemented:
+1. Added Unit Messages page for internal unit communication.
+2. Added /m/direct/unit route.
+3. Unit Messages shows only active officers inside the logged-in user's unit.
+4. Added unread counts limited to internal unit contacts.
+5. Added contact cards with officer appointment, role, rank/service number, presence status, and unread count.
+6. Added empty state that links authorised users to Unit Officers management.
+7. Added Unit Messages to sidebar for unit-attached accounts.
+8. Added Unit Messages to command search.
+9. Direct messages between officers in the same unit now log UNIT_INTERNAL_DIRECT_MESSAGE_SENT for unit audit traceability.
+10. Existing global Direct Messages remain available for inter-unit/HQ officer communication.
+11. Existing direct message AJAX/spinner fix is preserved.
+12. Existing signal workflow Phase 1-3 features are preserved.
+
+Workflow impact:
+- Chief Clerk, AO, signatory officers, and Commander can coordinate internally without leaving the system.
+- Unit internal communication now supports the internal signal routing workflow.
+- Internal DM audit event gives AO/Commander better traceability for unit-level communication.
+
+Checks:
+- Python compile check passed.
+- CSS added with responsive rules for desktop/tablet/mobile.
+- ZIP integrity checked after packaging.

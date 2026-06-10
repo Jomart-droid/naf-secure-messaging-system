@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="admin-console">
+  <div class="admin-hero-panel"><div class="admin-eyebrow"><span class="pulse-dot"></span> VISUAL COMMAND STRUCTURE</div><h1>Unit Hierarchy Tree</h1><div class="admin-hero-actions"><a class="btn btn-ghost" href="{{ url_for('admin.units') }}">Manage Units</a></div></div>
+  <section class="admin-panel">
+    {% macro render_node(u) %}
+      <li class="unit-node"><div class="unit-box"><div><b>{{ u.code }}</b> — {{ u.name }} <span class="badge-soft badge-blue" style="margin-left:8px;">{{ u.level }}</span></div><a class="btn btn-sm btn-ghost" href="{{ url_for('admin.edit_unit', unit_id=u.id) }}">Edit</a></div>{% if children.get(u.id) %}<ul class="unit-tree unit-children">{% for c in children.get(u.id) %}{{ render_node(c) }}{% endfor %}</ul>{% endif %}</li>
+    {% endmacro %}
+    <ul class="unit-tree">{% for r in roots %}{{ render_node(r) }}{% else %}<li class="muted">No units available.</li>{% endfor %}</ul>
+  </section>
+</section>
+{% endblock %}

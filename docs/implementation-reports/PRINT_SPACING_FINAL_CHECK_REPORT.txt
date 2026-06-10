@@ -1,0 +1,29 @@
+PRINT SPACING FINAL CHECK REPORT
+
+Package source: latest uploaded NAF SSS5 (2).zip
+
+Fixes applied:
+1. Increased print pagination capacity:
+   - first page line budget changed from 46 to 52 lines.
+   - continuation page line budget changed from 70 to 76 lines.
+   - estimated characters per line adjusted from 112 to 104 for safer wrapping.
+   - print route call changed to first_page_chars=2700 and continuation_chars=4300.
+
+2. Removed the unwanted middle lines below TO/INFO:
+   - the TO/INFO middle cell now uses rowspan=5.
+   - the empty middle placeholder cells were removed from later rows.
+   - this stops horizontal table lines from appearing under the TO/INFO area.
+
+3. Made the text box visually use the page space better:
+   - first page body box now has a minimum height to stretch closer to footer.
+   - continuation page body box now has a larger minimum height.
+   - removed text-body overflow:hidden to reduce clipping/cutting risk.
+
+Checks run:
+- Python compile check passed using python -m compileall app.
+- Verified broadcast_print.html contains first-body / cont-body classes.
+- Verified TO/INFO cell uses rowspan=5.
+- Verified messaging.py uses updated line budgets and pagination call.
+
+Note:
+This fixes the print preview layout and reduces early page breaks. If a specific signal still has a very unusual body format, tune first_max_lines/cont_max_lines slightly rather than reducing page body height.

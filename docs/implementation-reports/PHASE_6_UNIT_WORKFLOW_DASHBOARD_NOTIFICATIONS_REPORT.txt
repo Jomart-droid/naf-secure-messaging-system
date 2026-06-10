@@ -1,0 +1,34 @@
+PHASE 6 IMPLEMENTATION REPORT
+=============================
+
+Build source:
+- NAF_SSS_18_UNIT_WORKFLOW_PHASE_5_UNIT_AUDIT_IMPLEMENTED.zip
+
+Phase 6 focus:
+- Make the unit routing workflow visible everywhere it matters.
+- Add practical queue awareness so AO, signatory officers, Commander, and drafters can see pending internal actions quickly.
+
+Implemented:
+1. Added reusable app/unit_workflow.py helper module.
+2. Added safe visible workflow item filtering for unit users.
+3. Added grouped workflow counts:
+   - My Action
+   - Returned
+   - Ready for Release
+   - In Routing
+   - All
+4. Added global sidebar Unit Workflow badge count.
+5. Added unit workflow action count to dashboard stat cards.
+6. Added Unit Workflow mini-summary panel to dashboard.
+7. Added quick links from dashboard workflow records to signal detail.
+8. Preserved Phase 1-5 features: Unit Officers, internal routing, workflow center, unit messages, unit audit trail.
+9. Did not disturb sidebar scroll, brand text wrapping, or the direct message button spinner fixes.
+
+Validation:
+- Python compile check passed.
+- CSS brace balance check passed.
+- ZIP integrity check passed.
+
+Next recommended phase:
+- Phase 7: Unit release governance and policy controls.
+  This should include unit-level rules for who may sign by classification/precedence, mandatory Commander approval, and stronger release readiness checks.

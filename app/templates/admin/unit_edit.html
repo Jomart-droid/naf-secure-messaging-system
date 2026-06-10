@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="admin-console">
+  <div class="admin-hero-panel"><div class="admin-eyebrow"><span class="pulse-dot"></span> UNIT RECORD CONTROL</div><h1>{{ unit.code }}</h1><p>{{ unit.name }}</p><div class="admin-hero-actions"><a class="btn btn-ghost" href="{{ url_for('admin.units') }}">Back to Units</a></div></div>
+  <section class="admin-panel" style="max-width:920px;">
+    <form method="post" class="admin-form-grid single">{{ csrf_field() }}
+      <label><span>Unit name</span><input name="name" value="{{ unit.name }}" required></label>
+      <label><span>Unit code</span><input name="code" value="{{ unit.code }}" required></label>
+      <label><span>Level</span><select name="level">{% for lv in UnitLevel %}<option value="{{ lv.value }}" {% if unit.level==lv.value %}selected{% endif %}>{{ lv.value }}</option>{% endfor %}</select></label>
+      <label><span>Parent unit</span><select name="parent_id"><option value="">— No parent —</option>{% for u in units %}{% if u.id != unit.id %}<option value="{{ u.id }}" {% if unit.parent_id==u.id %}selected{% endif %}>{{ u.code }} — {{ u.name }}</option>{% endif %}{% endfor %}</select></label>
+      <button class="btn" type="submit">Save Unit</button>
+    </form>
+  </section>
+</section>
+{% endblock %}

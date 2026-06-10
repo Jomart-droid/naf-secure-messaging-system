@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="admin-console">
+  <div class="admin-hero-panel">
+    <div class="admin-eyebrow"><span class="pulse-dot"></span> SESSION SECURITY OPERATIONS</div>
+    <h1>Device & Session Control</h1>
+    
+  </div>
+  <div class="admin-kpi-grid">
+    <div class="admin-kpi"><span>Total Sessions</span><strong>{{ sessions|length }}</strong></div>
+    <div class="admin-kpi"><span>Active</span><strong>{{ sessions|rejectattr('revoked_at')|list|length }}</strong></div>
+    <div class="admin-kpi"><span>Revoked</span><strong>{{ sessions|selectattr('revoked_at')|list|length }}</strong></div>
+    <div class="admin-kpi"><span>Users</span><strong>{{ users|length }}</strong></div>
+  </div>
+
+  <section class="admin-panel">
+    <div class="admin-table-toolbar">
+      <div><h2>Session Watchlist</h2></div>
+      <input id="sessionFilter" class="admin-search" type="search" placeholder="Search user, IP, device…">
+    </div>
+    {% if not sessions %}
+      <div class="muted">No sessions recorded yet.</div>
+    {% else %}
+      <div class="session-grid" id="sessionGrid">
+        {% for s in sessions %}
+        {% set owner = users.get(s.user_id) %}
+        <div class="session-card {% if s.revoked_at %}revoked{% endif %}">
+          <div class="record-top">
+            <div class="identity-cell"><span class="avatar-dot">{{ (owner.full_name if owner else 'S')[:1] }}</span><div><div class="cell-title">{{ owner.full_name if owner else s.user_id }}</div><div class="cell-sub">{{ owner.service_number if owner else 'Unknown service number' }}</div></div></div>
+            {% if s.revoked_at %}<span class="badge-soft badge-red">REVOKED</span>{% else %}<span class="badge-soft badge-green">ACTIVE</span>{% endif %}
+          </div>
+          <div class="record-meta">
+            <span class="badge-soft badge-blue">IP {{ s.ip or '-' }}</span>
+            <span class="badge-soft">{{ s.created_at.strftime('%Y-%m-%d %H:%M') }}</span>
+          </div>
+          <div class="session-agent">{{ s.user_agent or '-' }}</div>
+          <div class="audit-hash" style="margin-top:8px;">{{ s.session_id }}</div>
+          {% if not s.revoked_at %}<div class="record-actions"><form method="post" action="{{ url_for('admin.sessions_revoke', sid=s.id) }}">{{ csrf_field() }}<button class="btn btn-sm danger" type="submit">Revoke Session</button></form></div>{% endif %}
+        </div>
+        {% endfor %}
+      </div>
+    {% endif %}
+  </section>
+</section>
+<script>(function(){const i=document.getElementById('sessionFilter'),g=document.getElementById('sessionGrid');if(!i||!g)return;i.addEventListener('input',()=>{const q=i.value.toLowerCase();g.querySelectorAll('.session-card').forEach(c=>c.style.display=!q||c.innerText.toLowerCase().includes(q)?'':'none')});})();</script>
+{% endblock %}
