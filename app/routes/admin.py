@@ -878,7 +878,6 @@ def delete_unit(unit_id):
     return redirect(url_for("admin.units"))
 
 
-
 @bp.route("/unit-accounts", methods=["GET", "POST"])
 @login_required
 @require_roles(Role.ADMIN.value)
@@ -887,26 +886,68 @@ def unit_accounts():
     if request.method == "POST":
         unit_id = request.form.get("unit_id", type=int)
         unit = Unit.query.get(unit_id) if unit_id else None
+
         if not unit:
             flash("Select an existing unit before creating a unit account.", "danger")
             return redirect(url_for("admin.unit_accounts"))
+
         email = (request.form.get("unit_email") or "").strip().lower() or None
         password = (request.form.get("unit_password") or "").strip() or None
+
         acct, result = _create_unit_workspace_account(unit, email, password)
+
         if not acct:
             flash(result, "warning")
             return redirect(url_for("admin.unit_accounts"))
-        flash(f"Unit workspace account created for {unit.code}. Login: {acct.service_number}. Temporary password: {result}", "success")
+
+        flash(
+            f"Unit workspace account created for {unit.code}. "
+            f"Login: {acct.service_number}. Temporary password: {result}",
+            "success"
+        )
         return redirect(url_for("admin.unit_officers", unit_id=unit.id))
 
     q = (request.args.get("q") or "").strip()
+
     units_query = Unit.query
+
     if q:
         like = f"%{q}%"
-        units_query = units_query.filter((Unit.name.ilike(like)) | (Unit.code.ilike(like)) | (Unit.level.ilike(like)))
+        units_query = units_query.filter(
+            (Unit.name.ilike(like)) |
+            (Unit.code.ilike(like)) |
+            (Unit.level.ilike(like))
+        )
+
     units = units_query.order_by(Unit.name.asc()).all()
-    accounts = {u.id: _unit_account_for(u.id) for u in units}
-    return render_template("admin/unit_accounts.html", units=units, accounts=accounts, search=q)
+
+    # Optimized: fetch all unit accounts in one query instead of querying once per unit.
+    unit_ids = [u.id for u in units]
+
+    accounts = {}
+
+    if unit_ids:
+        unit_accounts = (
+            User.query
+            .filter(
+                User.account_type == "UNIT",
+                User.unit_id.in_(unit_ids)
+            )
+            .order_by(User.created_at.asc())
+            .all()
+        )
+
+        for account in unit_accounts:
+            # Keep the first/oldest account per unit, matching the old logic.
+            if account.unit_id not in accounts:
+                accounts[account.unit_id] = account
+
+    return render_template(
+        "admin/unit_accounts.html",
+        units=units,
+        accounts=accounts,
+        search=q
+    )
 
 @bp.post("/unit-accounts/<int:user_id>/toggle")
 @login_required
