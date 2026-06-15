@@ -19,6 +19,7 @@ Pillow
 PyPDF2
 pyzipper
 beautifulsoup4
+bleach
 lxml
 email-validator
 WTForms
